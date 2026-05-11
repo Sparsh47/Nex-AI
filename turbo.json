@@ -1,11 +1,13 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
+  "globalEnv": ["NODE_ENV"],
   "ui": "tui",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**"],
+      "env": ["NEXT_PUBLIC_API_URL", "GROQ_API_KEY"]
     },
     "lint": {
       "dependsOn": ["^lint"]
@@ -14,22 +16,6 @@
       "dependsOn": ["^check-types"]
     },
     "dev": {
-      "cache": false,
-      "persistent": true
-    },
-    "dev:planner": {
-      "cache": false,
-      "persistent": true
-    },
-    "dev:coder": {
-      "cache": false,
-      "persistent": true
-    },
-    "dev:reviewer": {
-      "cache": false,
-      "persistent": true
-    },
-    "dev:deployer": {
       "cache": false,
       "persistent": true
     }

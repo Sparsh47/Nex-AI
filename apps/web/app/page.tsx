@@ -11,16 +11,19 @@ export default function Home() {
     (async () => {
       setLoading(true);
       try {
-        const response = await fetch("http://localhost:8000/api/test", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/test`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              issueId: "LINEAR-789",
+              linearIssueUrl: "http://linear.app/LINEAR-789",
+            }),
           },
-          body: JSON.stringify({
-            issueId: "LINEAR-123",
-            linearIssueUrl: "http://linear.app/LINEAR-123",
-          }),
-        });
+        );
         const data = await response.json();
 
         console.log("Data: ", data);
