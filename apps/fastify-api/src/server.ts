@@ -1,5 +1,5 @@
 import fastify from "fastify";
-import { agentQueue, QUEUE_NAME } from "@nex-ai/queue";
+import { plannerQueue } from "@nex-ai/queue";
 import { PlannerJobPayloadSchema } from "@nex-ai/types";
 import { randomUUID } from "crypto";
 import { logger } from "@nex-ai/logger";
@@ -35,7 +35,7 @@ server.post("/test", async (request, reply) => {
     });
   }
 
-  const job = await agentQueue.add("task-planner-test", parsed.data);
+  const job = await plannerQueue.add("task-planner-test", parsed.data);
 
   logger.info(`Job ${job.id} enqueued successfully`);
 

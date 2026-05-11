@@ -1,5 +1,10 @@
-import { UnionJobPayloadType } from "@nex-ai/types";
-import { Queue, Worker } from "bullmq";
+import {
+  CoderJobPayload,
+  DeployerJobPayload,
+  PlannerJobPayload,
+  ReviewerJobPayload,
+} from "@nex-ai/types";
+import { Queue, Worker, type Job } from "bullmq";
 import Redis from "ioredis";
 
 const connection = new Redis({
@@ -8,10 +13,20 @@ const connection = new Redis({
   maxRetriesPerRequest: null,
 });
 
-export const QUEUE_NAME = "agent-orchestration";
-
-export const agentQueue = new Queue<UnionJobPayloadType>(QUEUE_NAME, {
+export const plannerQueue = new Queue<PlannerJobPayload>("planner-queue", {
   connection,
 });
 
-export { connection, Worker };
+export const coderQueue = new Queue<CoderJobPayload>("coder-queue", {
+  connection,
+});
+
+export const reviewerQueue = new Queue<ReviewerJobPayload>("reviewer-queue", {
+  connection,
+});
+
+export const deployerQueue = new Queue<DeployerJobPayload>("deployer-queue", {
+  connection,
+});
+
+export { connection, Worker, Job };

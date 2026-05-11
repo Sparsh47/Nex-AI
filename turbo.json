@@ -16,6 +16,22 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "dev:planner": {
+      "cache": false,
+      "persistent": true
+    },
+    "dev:coder": {
+      "cache": false,
+      "persistent": true
+    },
+    "dev:reviewer": {
+      "cache": false,
+      "persistent": true
+    },
+    "dev:deployer": {
+      "cache": false,
+      "persistent": true
     }
   }
 }

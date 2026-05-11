@@ -2,9 +2,12 @@
   "name": "worker",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "concurrently -c \"cyan,magenta,yellow,blue\" -n \"PLANNER,CODER,REVIEW,DEPLOY\" \"pnpm run dev:planner\" \"pnpm run dev:coder\" \"pnpm run dev:reviewer\" \"pnpm run dev:deployer\"",
+    "dev:planner": "tsx watch src/planner.ts",
+    "dev:coder": "tsx watch src/coder.ts",
+    "dev:reviewer": "tsx watch src/reviewer.ts",
+    "dev:deployer": "tsx watch src/deployer.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },
@@ -16,6 +19,7 @@
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^22.15.3",
+    "concurrently": "^9.2.1",
     "tsx": "^4.21.0"
   },
   "keywords": [],

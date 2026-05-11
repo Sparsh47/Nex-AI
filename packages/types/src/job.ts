@@ -25,11 +25,13 @@ export type PlannerJobPayload = z.infer<typeof PlannerJobPayloadSchema>;
 
 export const CoderJobPayloadSchema = BaseJobPayloadSchema.extend({
   plannerResult: PlannerResultSchema,
+  reviewFeedback: ReviewerResultSchema.optional(),
 });
 export type CoderJobPayload = z.infer<typeof CoderJobPayloadSchema>;
 
 export const ReviewerJobPayloadSchema = BaseJobPayloadSchema.extend({
   coderResult: CoderResultSchema,
+  plannerResult: PlannerResultSchema,
 });
 export type ReviewerJobPayload = z.infer<typeof ReviewerJobPayloadSchema>;
 
@@ -37,11 +39,3 @@ export const DeployerJobPayloadSchema = BaseJobPayloadSchema.extend({
   reviewerResult: ReviewerResultSchema,
 });
 export type DeployerJobPayload = z.infer<typeof DeployerJobPayloadSchema>;
-
-export const UnionJobPayloadSchema = z.union([
-  PlannerJobPayloadSchema,
-  CoderJobPayloadSchema,
-  ReviewerJobPayloadSchema,
-  DeployerJobPayloadSchema,
-]);
-export type UnionJobPayloadType = z.infer<typeof UnionJobPayloadSchema>;
