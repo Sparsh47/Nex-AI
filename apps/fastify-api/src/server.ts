@@ -1,4 +1,5 @@
 import fastify from "fastify";
+import { agentQueue, QUEUE_NAME } from "@nex-ai/queue";
 
 const server = fastify({
   logger: true,
@@ -9,7 +10,15 @@ server.get("/ping", async (request, reply) => {
 });
 
 server.get("/test", async (request, reply) => {
-  return { message: "Test Endpoint is working.", status: "ok" };
+  const jobData = {
+    issueId: "LINEAR-123",
+    action: "analyze_ast",
+    timestamp: Date.now(),
+  };
+
+  const job = await agentQueue.add(QUEUE_NAME, jobData);
+
+  return { jobId: job.id, status: "job-enqueued" };
 });
 
 const start = async () => {

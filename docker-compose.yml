@@ -12,6 +12,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    volumes:
+      - kong-database-data:/var/lib/postgresql/data
 
   kong-migrations:
     image: kong:3.6.0-ubuntu
@@ -47,3 +49,19 @@ services:
       - "8001:8001" # Admin API
       - "8444:8444" # Admin API SSL
       - "8002:8002" # Kong Manager (Admin GUI)
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  redis-data:
+  kong-database-data:
