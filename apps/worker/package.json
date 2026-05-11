@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@nex-ai/logger": "workspace:*",
-    "@nex-ai/queue": "workspace:*"
+    "@nex-ai/queue": "workspace:*",
+    "@nex-ai/types": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

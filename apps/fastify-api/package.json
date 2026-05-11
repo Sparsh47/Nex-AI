@@ -13,7 +13,9 @@
   "license": "ISC",
   "dependencies": {
     "@nex-ai/queue": "workspace:*",
-    "fastify": "^5.8.5"
+    "fastify": "^5.8.5",
+    "@nex-ai/types": "workspace:*",
+    "@nex-ai/logger": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

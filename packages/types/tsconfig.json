@@ -1,0 +1,9 @@
+{
+  "extends": "@repo/typescript-config/api.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "strict": true,
+  },
+  "include": ["src"],
+}

@@ -1,19 +1,17 @@
 {
-  "name": "@nex-ai/queue",
+  "name": "@nex-ai/types",
   "version": "1.0.0",
   "description": "",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "bullmq": "^5.76.6",
-    "ioredis": "^5.10.1",
-    "@nex-ai/types": "workspace:*"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*"

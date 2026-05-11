@@ -1,9 +1,10 @@
 import { QUEUE_NAME, connection, Worker } from "@nex-ai/queue";
 import { logger } from "@nex-ai/logger";
+import { UnionJobPayloadType } from "@nex-ai/types";
 
 logger.info("Worker is starting");
 
-const worker = new Worker(
+const worker = new Worker<UnionJobPayloadType>(
   QUEUE_NAME,
   async (job) => {
     logger.info(`Processing job: ${job.id} for issue: ${job.data.issueId}`);
