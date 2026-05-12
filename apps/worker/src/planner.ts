@@ -14,14 +14,12 @@ export const plannerWorker = new Worker<PlannerJobPayload>(
     logger.info(`[Planner]: Analyzing issue: ${job.data.issueId}`);
 
     const state = await plannerGraph.invoke({
-      issueDescription: `Please create a Next.js and Fastify architecture plan for a ticket titled: ${job.data.issueId}`,
+      issueId: job.data.issueId,
     });
 
     const result = state.finalPlan;
 
     logger.info(`[Planner]: Result: ${result.approachSummary}`);
-
-    console.log("RESULT: ", result);
 
     await coderQueue.add("coder-task", {
       jobId: job.data.jobId,

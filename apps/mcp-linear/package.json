@@ -1,26 +1,26 @@
 {
-  "name": "@nex-ai/agent",
+  "name": "mcp-linear",
   "version": "1.0.0",
   "description": "",
   "main": "./src/index.ts",
-  "types": "./src/index.ts",
   "scripts": {
-    "test:planner": "tsx ./src/test-planner.ts"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "type": "module",
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.15.3",
+    "dotenv": "^17.4.2",
     "tsx": "^4.21.0"
   },
   "dependencies": {
-    "@langchain/core": "^1.1.45",
-    "@langchain/groq": "^1.2.0",
-    "@langchain/langgraph": "^1.3.0",
+    "@linear/sdk": "^84.0.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@nex-ai/logger": "workspace:*",
     "@nex-ai/types": "workspace:*",
-    "dotenv": "^17.4.2"
+    "@nex-ai/logger": "workspace:*"
   }
 }

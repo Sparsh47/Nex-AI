@@ -19,14 +19,13 @@ export default function Home() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              issueId: "LINEAR-789",
+              issueId: "NEX-6",
               linearIssueUrl: "http://linear.app/LINEAR-789",
             }),
           },
         );
         const data = await response.json();
 
-        console.log("Data: ", data);
         if (data.status === "job-enqueued") {
           setMessage(data.payload.linearIssueUrl);
         } else {
