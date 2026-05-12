@@ -7,7 +7,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index";
 import { llm } from ".";
 import { PlannerResult, PlannerResultSchema } from "@nex-ai/types";
 
-const transport = new StdioClientTransport({
+const linearTransport = new StdioClientTransport({
   command: "npx",
   args: [
     "tsx",
@@ -18,22 +18,50 @@ const transport = new StdioClientTransport({
   ) as Record<string, string>,
 });
 
-const mcpClient = new Client(
+const githubTransport = new StdioClientTransport({
+  command: "npx",
+  args: [
+    "tsx",
+    path.resolve(__dirname, "../../../apps/mcp-github/src/index.ts"),
+  ],
+  env: Object.fromEntries(
+    Object.entries(process.env).filter(([_, v]) => v !== undefined),
+  ) as Record<string, string>,
+});
+
+const linearClient = new Client(
   { name: "planner-mcp-client", version: "1.0.0" },
+  { capabilities: {} },
+);
+
+const githubClient = new Client(
+  { name: "planner-github-client", version: "1.0.0" },
   { capabilities: {} },
 );
 
 export const PlannerState = Annotation.Root({
   issueId: Annotation<string>(),
+  repositoryName: Annotation<string>(),
   finalPlan: Annotation<PlannerResult>(),
 });
 
 async function planNode(state: typeof PlannerState.State) {
-  if (!mcpClient.transport) {
-    await mcpClient.connect(transport);
+  if (!linearClient.transport) {
+    await linearClient.connect(linearTransport);
   }
 
-  const { tools } = await mcpClient.listTools();
+  if (!githubClient.transport) {
+    await githubClient.connect(githubTransport);
+  }
+
+  const [owner, repo] = state.repositoryName.split("/");
+
+  const repoContent = await githubClient.callTool({
+    name: "list_files",
+    arguments: { owner, repo, path: "src" },
+  });
+
+  const { tools } = await linearClient.listTools();
 
   const formattedTools = tools.map((t) => ({
     type: "function",
@@ -49,15 +77,15 @@ async function planNode(state: typeof PlannerState.State) {
   const researchResponse = await llmWithTools.invoke([
     [
       "system",
-      "You are a lead architect. Use the provided tools to fetch issue details before creating a plan.",
+      "You are a Senior Architect. Your goal is to gather context for a coding task.",
     ],
-    ["user", `I need a plan for issue: ${state.issueId}`],
+    ["user", `Fetch the details for Linear issue: ${state.issueId}`],
   ]);
 
   let issueContext = "";
   if (researchResponse.tool_calls?.[0]) {
     const toolCall = researchResponse.tool_calls[0];
-    const result = await mcpClient.callTool({
+    const result = await linearClient.callTool({
       name: toolCall.name,
       arguments: toolCall.args,
     });
@@ -69,9 +97,19 @@ async function planNode(state: typeof PlannerState.State) {
   const finalResult = await structuredLlm.invoke([
     [
       "system",
-      "Generate a technical execution plan based on this REAL issue context.",
+      `You are a Senior Architect. Generate a technical execution plan.
+
+         REAL FILE STRUCTURE (Only plan changes for these files or logical new ones):
+         ${JSON.stringify(repoContent)}
+
+         REQUIREMENTS:
+         1. If the project uses 'src/index.ts' as an entry point, you MUST include it in 'filesToChange' to register any new routes.
+         2. Maintain consistency with the existing directory structure.`,
     ],
-    ["user", `Context: ${issueContext}`],
+    [
+      "user",
+      `Create a plan based on this Linear Issue Context: ${issueContext}`,
+    ],
   ]);
 
   return { finalPlan: finalResult };

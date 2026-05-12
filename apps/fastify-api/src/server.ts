@@ -20,6 +20,7 @@ server.post("/test", async (request, reply) => {
     issueId: body.issueId,
     timestamp: Date.now(),
     linearIssueUrl: body.linearIssueUrl,
+    repositoryName: body.repositoryName,
   };
 
   const parsed = PlannerJobPayloadSchema.safeParse(rawData);

@@ -15,9 +15,12 @@ export const plannerWorker = new Worker<PlannerJobPayload>(
 
     const state = await plannerGraph.invoke({
       issueId: job.data.issueId,
+      repositoryName: job.data.repositoryName,
     });
 
     const result = state.finalPlan;
+
+    console.log("FINAL PLAN: ", result);
 
     logger.info(`[Planner]: Result: ${result.approachSummary}`);
 
@@ -25,6 +28,7 @@ export const plannerWorker = new Worker<PlannerJobPayload>(
       jobId: job.data.jobId,
       issueId: job.data.issueId,
       timestamp: Date.now(),
+      repositoryName: job.data.repositoryName,
       plannerResult: result,
     });
 

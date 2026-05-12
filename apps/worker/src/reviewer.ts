@@ -40,6 +40,7 @@ export const reviewerWorker = new Worker<ReviewerJobPayload>(
         timestamp: Date.now(),
         plannerResult: job.data.plannerResult,
         reviewFeedback: mockResult,
+        repositoryName: job.data.repositoryName,
       });
     }
 

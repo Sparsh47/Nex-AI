@@ -1,0 +1,11 @@
+{
+  "extends": "@repo/typescript-config/api.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "target": "ES2017",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+  },
+  "include": ["src/**/*"],
+}

@@ -20,7 +20,9 @@ export default function Home() {
             },
             body: JSON.stringify({
               issueId: "NEX-6",
-              linearIssueUrl: "http://linear.app/LINEAR-789",
+              linearIssueUrl:
+                "https://linear.app/nex-ai-space/issue/NEX-6/implement-user-profile-retrieval-and-update-endpoints",
+              repositoryName: "Sparsh47/nex-ai-test-repo",
             }),
           },
         );

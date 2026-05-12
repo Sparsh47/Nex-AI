@@ -5,7 +5,8 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "test:planner": "tsx ./src/test-planner.ts"
+    "test:planner": "tsx ./src/test-planner.ts",
+    "test:coder": "tsx ./src/test-coder.ts"
   },
   "keywords": [],
   "author": "",

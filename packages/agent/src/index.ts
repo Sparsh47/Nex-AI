@@ -7,7 +7,7 @@ dotenv.config();
 
 export const llm = new ChatGroq({
   apiKey: process.env.GROQ_API_KEY,
-  model: "llama-3.1-8b-instant",
+  model: "qwen/qwen3-32b",
   temperature: 0.1,
   maxRetries: 3,
 });
@@ -21,3 +21,4 @@ export const BaseAgentState = Annotation.Root({
 });
 
 export * from "./planner";
+export * from "./coder";

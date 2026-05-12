@@ -1,3 +1,4 @@
+import { coderGraph } from "@nex-ai/agent";
 import { logger } from "@nex-ai/logger";
 import { Worker, connection, Job, reviewerQueue } from "@nex-ai/queue";
 import { CoderJobPayload } from "@nex-ai/types";
@@ -12,18 +13,20 @@ export const coderWorker = new Worker<CoderJobPayload>(
       `[Coder] Context received: ${job.data.plannerResult.approachSummary}`,
     );
 
-    const mockResult = {
-      branchName: "feature/auth",
-      changedFiles: ["src/main.ts"],
-      diffSummary: "+10 -2",
-      commitSha: "abc1234",
-    };
+    const state = await coderGraph.invoke({
+      issueId: job.data.issueId,
+      repository: job.data.repositoryName,
+      plan: job.data.plannerResult,
+    });
+
+    const result = state.finalCode;
 
     await reviewerQueue.add("reviewer-task", {
       jobId: job.data.jobId,
       issueId: job.data.issueId,
       timestamp: Date.now(),
-      coderResult: mockResult,
+      coderResult: result,
+      repositoryName: job.data.repositoryName,
       plannerResult: job.data.plannerResult,
     });
   },
