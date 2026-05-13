@@ -6,7 +6,8 @@
   "types": "./src/index.ts",
   "scripts": {
     "test:planner": "tsx ./src/test-planner.ts",
-    "test:coder": "tsx ./src/test-coder.ts"
+    "test:coder": "tsx ./src/test-coder.ts",
+    "test:reviewer": "tsx ./src/test-reviewer.ts"
   },
   "keywords": [],
   "author": "",

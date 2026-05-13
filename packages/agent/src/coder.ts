@@ -28,6 +28,7 @@ export const CoderState = Annotation.Root({
   issueId: Annotation<string>(),
   repository: Annotation<string>(),
   plan: Annotation<PlannerResult>(),
+  reviewFeedback: Annotation<string | undefined>(),
   finalCode: Annotation<CoderResult>(),
 });
 
@@ -56,24 +57,32 @@ async function codeNode(state: typeof CoderState.State) {
   logger.info(`[Coder] Taking control of repository: ${owner}/${repo}...`);
 
   const systemPrompt = `You are an autonomous AI Software Engineer.
-    You have full write access to the repository: ${owner}/${repo}.
+      You have full write access to the repository: ${owner}/${repo}.
 
-    Your task:
-    1. Read the necessary files to understand the codebase.
-    2. Create a new branch named 'feature/${state.issueId}'.
-    3. Write the new code and use the 'commit_file' tool to push it to your branch.
-       CRITICAL INSTRUCTION FOR commit_file: You MUST provide the ENTIRE, 100% complete file content from line 1 to the end.
-       - Do NOT use placeholders like "// existing code goes here".
-       - Do NOT truncate the file.
-       - Ensure all requirements from the plan are implemented in the final string.
+      Your task:
+      1. READ: Use 'read_file' to understand the codebase. If you are fixing code based on 'reviewFeedback', ensure you read the file from your existing feature branch.
+      2. BRANCH: Attempt to create a branch named 'feature/${state.issueId}'.
+         - If 'create_branch' returns a 422 error (Reference already exists), this is a SUCCESS.
+         - DO NOT stop and DO NOT create a new branch with a suffix.
+         - Simply proceed to 'commit_file' using the existing branch: 'feature/${state.issueId}'.
+      3. WRITE: Implement the requirements from the provided plan and incorporate any 'reviewFeedback' if present.
+      4. COMMIT: Use 'commit_file' to push your changes to 'feature/${state.issueId}'.
 
-       You MUST NOT finish your action loop until you have successfully executed the 'commit_file' tool.
-       Do NOT stop after just reading the file. You must read, write the new code, and execute 'commit_file'.
-       Once the file is committed successfully, you are DONE. Do not attempt to open a Pull Request.`;
+      CRITICAL INSTRUCTIONS FOR 'commit_file':
+      - JSON ESCAPING: You are sending code inside a JSON tool call. You MUST properly escape all newlines (\\n), double-quotes (\\"), and backslashes (\\\\) within the "content" string.
+      - FULL CONTENT: You MUST provide the ENTIRE, 100% complete file content from line 1 to the end. Do NOT use placeholders, do NOT truncate, and do NOT include ellipses.
+      - ATOMICITY: Do NOT finish your loop until 'commit_file' has returned a success message.
+
+      GOAL:
+      Once the file is committed successfully to 'feature/${state.issueId}', you are DONE. Do not attempt to open a Pull Request.`;
+
+  const reviewSection = state.reviewFeedback
+    ? `\n\nREVIEW FEEDBACK (from previous attempt — you MUST address ALL of these):\n${state.reviewFeedback}`
+    : "";
 
   const messages: any[] = [
     ["system", systemPrompt],
-    ["user", `Execute this plan: ${JSON.stringify(state.plan)}`],
+    ["user", `Execute this plan: ${JSON.stringify(state.plan)}${reviewSection}`],
   ];
 
   let finalResponseStr = "";

@@ -20,8 +20,6 @@ export const plannerWorker = new Worker<PlannerJobPayload>(
 
     const result = state.finalPlan;
 
-    console.log("FINAL PLAN: ", result);
-
     logger.info(`[Planner]: Result: ${result.approachSummary}`);
 
     await coderQueue.add("coder-task", {

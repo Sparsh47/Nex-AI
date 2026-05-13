@@ -64,6 +64,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "string",
             description: "Full file path (e.g., src/index.ts)",
           },
+          branch: {
+            type: "string",
+            description: "The branch to read from (optional, defaults to main)",
+          },
         },
         required: ["owner", "repo", "path"],
       },
@@ -127,15 +131,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     if (name === "list_files") {
-      const { owner, repo, path } = args as {
+      const { owner, repo, path, branch } = args as {
         owner: string;
         repo: string;
         path: string;
+        branch: string;
       };
       const response = await octokit.rest.repos.getContent({
         owner,
         repo,
         path,
+        ref: branch,
       });
 
       if (Array.isArray(response.data)) {
@@ -152,15 +158,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     if (name === "read_file") {
-      const { owner, repo, path } = args as {
+      const { owner, repo, path, branch } = args as {
         owner: string;
         repo: string;
         path: string;
+        branch?: string;
       };
       const response = await octokit.rest.repos.getContent({
         owner,
         repo,
         path,
+        ref: branch,
       });
 
       if (
@@ -181,24 +189,44 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (name === "create_branch") {
       const { owner, repo, branchName } = args as any;
-      const mainRef = await octokit.rest.git.getRef({
-        owner,
-        repo,
-        ref: "heads/main",
-      });
-      const sha = mainRef.data.object.sha;
+      try {
+        const mainRef = await octokit.rest.git.getRef({
+          owner,
+          repo,
+          ref: "heads/main",
+        });
+        const sha = mainRef.data.object.sha;
 
-      await octokit.rest.git.createRef({
-        owner,
-        repo,
-        ref: `refs/heads/${branchName}`,
-        sha,
-      });
-      return {
-        content: [
-          { type: "text", text: `Successfully created branch: ${branchName}` },
-        ],
-      };
+        await octokit.rest.git.createRef({
+          owner,
+          repo,
+          ref: `refs/heads/${branchName}`,
+          sha,
+        });
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Successfully created branch: ${branchName}`,
+            },
+          ],
+        };
+      } catch (e: any) {
+        if (
+          e.status === 422 &&
+          e.message.includes("Reference already exists")
+        ) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Branch ${branchName} already exists. You can proceed with commit_file.`,
+              },
+            ],
+          };
+        }
+        throw e;
+      }
     }
 
     if (name === "commit_file") {
@@ -251,6 +279,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     throw new Error(`Tool not found: ${name}`);
   } catch (error: any) {
+    if (
+      error.status === 422 &&
+      error.message.includes("Reference already exists")
+    ) {
+      const bn = (args as any)?.branchName ?? "unknown";
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Branch ${bn} already exists. You can proceed with commit_file.`,
+          },
+        ],
+      };
+    }
     return {
       isError: true,
       content: [{ type: "text", text: `GitHub API Error: ${error.message}` }],

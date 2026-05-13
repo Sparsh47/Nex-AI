@@ -9,7 +9,7 @@ import {
 // 1. BASE PAYLOAD
 // ==========================================
 export const BaseJobPayloadSchema = z.object({
-  jobId: z.string().uuid({ message: "jobId must be a valid UUID" }),
+  jobId: z.string({ message: "jobId must be a string" }),
   issueId: z.string(),
   timestamp: z.number().int().positive(),
 });
@@ -40,5 +40,6 @@ export type ReviewerJobPayload = z.infer<typeof ReviewerJobPayloadSchema>;
 
 export const DeployerJobPayloadSchema = BaseJobPayloadSchema.extend({
   reviewerResult: ReviewerResultSchema,
+  repositoryName: z.string(),
 });
 export type DeployerJobPayload = z.infer<typeof DeployerJobPayloadSchema>;

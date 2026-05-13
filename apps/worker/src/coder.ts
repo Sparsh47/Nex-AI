@@ -17,6 +17,9 @@ export const coderWorker = new Worker<CoderJobPayload>(
       issueId: job.data.issueId,
       repository: job.data.repositoryName,
       plan: job.data.plannerResult,
+      reviewFeedback: job.data.reviewFeedback
+        ? job.data.reviewFeedback.changeRequests.join("\n")
+        : undefined,
     });
 
     const result = state.finalCode;
