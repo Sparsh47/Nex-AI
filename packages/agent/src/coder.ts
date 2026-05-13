@@ -5,6 +5,7 @@ import path from "path";
 import { Client } from "@modelcontextprotocol/sdk/client/index";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio";
 import { CoderResult, CoderResultSchema, PlannerResult } from "@nex-ai/types";
+import { z } from "zod";
 import { llm } from ".";
 import { logger } from "@nex-ai/logger";
 
@@ -56,25 +57,47 @@ async function codeNode(state: typeof CoderState.State) {
 
   logger.info(`[Coder] Taking control of repository: ${owner}/${repo}...`);
 
-  const systemPrompt = `You are an autonomous AI Software Engineer.
-      You have full write access to the repository: ${owner}/${repo}.
+  const systemPrompt = `You are an autonomous AI Software Engineer working on the repository: ${owner}/${repo}.
 
-      Your task:
-      1. READ: Use 'read_file' to understand the codebase. If you are fixing code based on 'reviewFeedback', ensure you read the file from your existing feature branch.
-      2. BRANCH: Attempt to create a branch named 'feature/${state.issueId}'.
-         - If 'create_branch' returns a 422 error (Reference already exists), this is a SUCCESS.
-         - DO NOT stop and DO NOT create a new branch with a suffix.
-         - Simply proceed to 'commit_file' using the existing branch: 'feature/${state.issueId}'.
-      3. WRITE: Implement the requirements from the provided plan and incorporate any 'reviewFeedback' if present.
-      4. COMMIT: Use 'commit_file' to push your changes to 'feature/${state.issueId}'.
+      ═══════════════════════════════════════════════
+      MANDATORY PHASE 1 — DISCOVERY (do this FIRST, before any commits)
+      ═══════════════════════════════════════════════
+      Before writing a single line of code you MUST:
 
-      CRITICAL INSTRUCTIONS FOR 'commit_file':
-      - JSON ESCAPING: You are sending code inside a JSON tool call. You MUST properly escape all newlines (\\n), double-quotes (\\"), and backslashes (\\\\) within the "content" string.
-      - FULL CONTENT: You MUST provide the ENTIRE, 100% complete file content from line 1 to the end. Do NOT use placeholders, do NOT truncate, and do NOT include ellipses.
-      - ATOMICITY: Do NOT finish your loop until 'commit_file' has returned a success message.
+      A. Read 'package.json' from the main branch using 'read_file'.
+         - Identify: the web framework (Express, Fastify, Hono, etc.), test runner, language (TypeScript/JavaScript), and ALL installed packages.
+         - You MUST use ONLY the packages already listed in dependencies/devDependencies.
+         - Do NOT invent or assume packages. If a package is not in package.json, it is NOT installed.
 
-      GOAL:
-      Once the file is committed successfully to 'feature/${state.issueId}', you are DONE. Do not attempt to open a Pull Request.`;
+      B. Read every source file mentioned in the plan using 'read_file'.
+         - Read from the feature branch 'feature/${state.issueId}' if it already exists, otherwise from 'main'.
+         - Understand the existing code style, imports, and patterns before writing anything.
+
+      ═══════════════════════════════════════════════
+      PHASE 2 — BRANCH
+      ═══════════════════════════════════════════════
+      Attempt to create a branch named 'feature/${state.issueId}'.
+      - A 422 "Reference already exists" response means the branch already exists — this is a SUCCESS, not an error.
+      - DO NOT create a branch with a suffix (e.g. feature/${state.issueId}-2). Always use exactly 'feature/${state.issueId}'.
+
+      ═══════════════════════════════════════════════
+      PHASE 3 — WRITE & COMMIT
+      ═══════════════════════════════════════════════
+      1. FRAMEWORK: Use ONLY the framework and libraries discovered in package.json. If the project uses Fastify, write Fastify code. If Express, write Express code. Never substitute.
+
+      2. NEW PACKAGES: If the plan requires a package that is NOT in package.json:
+         - Add it to the "dependencies" (or "devDependencies") section in package.json.
+         - Commit the updated package.json as one of your files.
+         - Note: you cannot run 'npm install' — adding it to package.json is sufficient for the CI pipeline to install it.
+
+      3. COMMIT RULES for 'commit_file':
+         - JSON ESCAPING: Escape all newlines (\\n), double-quotes (\\"), and backslashes (\\\\) inside the "content" string.
+         - FULL CONTENT: Provide the ENTIRE file from line 1 to the last line. No placeholders, no truncation, no ellipses.
+         - ONE FILE PER CALL: Call 'commit_file' once per file. Commit every file the plan requires.
+         - Do NOT stop until every required file has been successfully committed.
+
+      GOAL: All required files committed to 'feature/${state.issueId}'. Do NOT open a Pull Request.`;
+
 
   const reviewSection = state.reviewFeedback
     ? `\n\nREVIEW FEEDBACK (from previous attempt — you MUST address ALL of these):\n${state.reviewFeedback}`
@@ -86,9 +109,15 @@ async function codeNode(state: typeof CoderState.State) {
   ];
 
   let finalResponseStr = "";
+  let stepCount = 0;
+  let errorCount = 0;
+  const MAX_TOOL_ERRORS = 5;
 
-  for (let i = 0; i < 5; i++) {
-    logger.info(`[Coder] Thinking... (Step ${i + 1}/5)`);
+  while (errorCount < MAX_TOOL_ERRORS) {
+    stepCount++;
+    logger.info(
+      `[Coder] Thinking... (Step ${stepCount}, tool errors: ${errorCount}/${MAX_TOOL_ERRORS})`,
+    );
 
     const response = await llmWithTools.invoke(messages);
     messages.push(response);
@@ -109,6 +138,14 @@ async function codeNode(state: typeof CoderState.State) {
         const toolOutput =
           textContent.find((c) => c.type === "text")?.text || "Success";
 
+        // Track errors so we can abort if the LLM is stuck
+        if (result.isError) {
+          errorCount++;
+          logger.warn(
+            `[Coder] Tool '${toolCall.name}' returned an error (${errorCount}/${MAX_TOOL_ERRORS}): ${toolOutput}`,
+          );
+        }
+
         messages.push({
           role: "tool",
           name: toolCall.name,
@@ -124,21 +161,81 @@ async function codeNode(state: typeof CoderState.State) {
     }
   }
 
+  if (errorCount >= MAX_TOOL_ERRORS) {
+    logger.warn(
+      `[Coder] Stopped after hitting ${MAX_TOOL_ERRORS} tool errors across ${stepCount} steps.`,
+    );
+  }
+
   logger.info(
     `[Coder] GitHub Operations complete. Generating final summary payload...`,
   );
 
-  const structuredLlm = llm.withStructuredOutput(CoderResultSchema);
-  const finalResult = await structuredLlm.invoke([
-    [
-      "system",
-      "You just completed pushing code to GitHub. Fill out the CoderResultSchema strictly based on the actions you just took. Do not hallucinate. OMIT the pullRequestUrl since PR creation is handled by a downstream agent.",
-    ],
-    [
-      "user",
-      `Plan executed: ${JSON.stringify(state.plan)}\n\nTool Execution Logs:\n${finalResponseStr}`,
-    ],
-  ]);
+  const CoderResultLLMSchema = z.object({
+    branchName: z.string(),
+    changedFiles: z.array(z.string()),
+    diffSummary: z.string(),
+    commitSha: z.string(),
+    pullRequestUrl: z.string().optional(),
+  });
+
+  let finalResult: CoderResult = {
+    branchName: `feature/${state.issueId}`,
+    changedFiles: state.plan.filesToChange ?? [],
+    diffSummary: "Code changes committed",
+    commitSha: "unknown",
+  };
+  try {
+    const structuredLlm = llm.withStructuredOutput(CoderResultLLMSchema);
+    finalResult = await structuredLlm.invoke([
+      [
+        "system",
+        `You just completed pushing code to GitHub. Return ONLY a JSON object with these exact fields:
+- branchName: the branch you committed to (string)
+- changedFiles: array of file paths you committed (string[])
+- diffSummary: one-sentence summary of what was done (string, keep it short)
+- commitSha: the commit SHA returned by commit_file (string)
+Do NOT include pullRequestUrl.`,
+      ],
+      [
+        "user",
+        `Tool Execution Logs (use ONLY this to fill the schema, do not add extra info):\n${finalResponseStr.slice(0, 3000)}`,
+      ],
+    ]) as CoderResult;
+  } catch (err: any) {
+    logger.warn(`[Coder] Structured output failed — attempting JSON recovery from error`);
+
+    let recovered = false;
+    try {
+      const errBody = JSON.parse(err.message.replace(/^\d{3} /, ""));
+      const raw: string = errBody?.error?.failed_generation ?? "";
+      const stripped = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+      const parsed = JSON.parse(stripped);
+      finalResult = {
+        branchName: parsed.branchName ?? `feature/${state.issueId}`,
+        changedFiles: Array.isArray(parsed.changedFiles) ? parsed.changedFiles : [],
+        diffSummary: parsed.diffSummary ?? "Changes committed",
+        commitSha: parsed.commitSha ?? "unknown",
+        pullRequestUrl: parsed.pullRequestUrl,
+      };
+      recovered = true;
+      logger.info(`[Coder] Recovered structured output from failed_generation (branch: ${finalResult.branchName})`);
+    } catch (_) {
+    }
+
+    if (!recovered) {
+      logger.warn(`[Coder] JSON recovery failed — using regex fallback on tool logs`);
+      const branchMatch = finalResponseStr.match(/feature\/[\w-]+/);
+      const shaMatch = finalResponseStr.match(/SHA:\s*([a-f0-9]{40})/i);
+      const committedMatches = [...finalResponseStr.matchAll(/Committed\s+([\w./\-]+)/gi)].map(m => m[1]);
+      finalResult = {
+        branchName: branchMatch?.[0] ?? `feature/${state.issueId}`,
+        changedFiles: committedMatches.length > 0 ? committedMatches : (state.plan.filesToChange ?? []),
+        diffSummary: "Code changes committed (regex fallback used)",
+        commitSha: shaMatch?.[1] ?? "unknown",
+      };
+    }
+  }
 
   return { finalCode: finalResult };
 }

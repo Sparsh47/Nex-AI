@@ -48,16 +48,43 @@ async function reviewNode(state: typeof ReviewerState.State) {
 
   logger.info(`[Reviewer] Starting review for branch: ${branchName}`);
 
-  const fileContents = await Promise.all(
-    state.coderResult.changedFiles.map(async (filePath) => {
-      const result = await githubClient.callTool({
-        name: "read_file",
-        arguments: { owner, repo, path: filePath, branch: branchName },
-      });
+  const fileContents = (
+    await Promise.all(
+      state.coderResult.changedFiles.map(async (filePath) => {
+        try {
+          const result = await githubClient.callTool({
+            name: "read_file",
+            arguments: { owner, repo, path: filePath, branch: branchName },
+          });
 
-      return { path: filePath, content: result };
-    }),
-  );
+          const textContent = result.content as Array<{ type: string; text: string }>;
+          const text = textContent.find((c) => c.type === "text")?.text ?? "";
+
+          // If the MCP server returned an error (e.g. 404), skip this file
+          if (result.isError || text.startsWith("GitHub API Error")) {
+            logger.warn(`[Reviewer] Could not read ${filePath} from branch ${branchName} — skipping`);
+            return null;
+          }
+
+          return { path: filePath, content: text };
+        } catch (err: any) {
+          logger.warn(`[Reviewer] Failed to read ${filePath}: ${err.message} — skipping`);
+          return null;
+        }
+      }),
+    )
+  ).filter(Boolean);
+
+  if (fileContents.length === 0) {
+    logger.warn(
+      `[Reviewer] No files could be read from branch ${branchName}. The coder likely did not commit all required files.`,
+    );
+    return {
+      reviewSummary:
+        `REQUEST_CHANGES\n\nNone of the expected files (${state.coderResult.changedFiles.join(", ")}) could be read from branch ${branchName}. ` +
+        `This means the coder either did not commit them or committed to the wrong branch. Please commit all required files to feature/${state.issueId}.`,
+    };
+  }
 
   const systemPrompt = `You are a Senior QA Engineer and Code Reviewer.
       You are reviewing work for ${owner}/${repo} on branch ${branchName}.
@@ -65,7 +92,7 @@ async function reviewNode(state: typeof ReviewerState.State) {
       ORIGINAL PLAN:
       ${JSON.stringify(state.plannerResult)}
 
-      CODE PRODUCED:
+      CODE PRODUCED (${fileContents.length} of ${state.coderResult.changedFiles.length} files readable):
       ${JSON.stringify(fileContents)}
 
       YOUR TASK:
