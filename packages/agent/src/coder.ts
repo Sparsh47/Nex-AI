@@ -4,7 +4,7 @@ import { Annotation, StateGraph } from "@langchain/langgraph";
 import path from "path";
 import { Client } from "@modelcontextprotocol/sdk/client/index";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio";
-import { CoderResult, CoderResultSchema, PlannerResult } from "@nex-ai/types";
+import { CoderResult, PlannerResult } from "@nex-ai/types";
 import { z } from "zod";
 import { llm } from ".";
 import { logger } from "@nex-ai/logger";
@@ -64,14 +64,29 @@ async function codeNode(state: typeof CoderState.State) {
       ═══════════════════════════════════════════════
       Before writing a single line of code you MUST:
 
-      A. Read 'package.json' from the main branch using 'read_file'.
-         - Identify: the web framework (Express, Fastify, Hono, etc.), test runner, language (TypeScript/JavaScript), and ALL installed packages.
-         - You MUST use ONLY the packages already listed in dependencies/devDependencies.
-         - Do NOT invent or assume packages. If a package is not in package.json, it is NOT installed.
+      A. Identify the project's language and read its dependency manifest using 'read_file'.
+         - The manifest is language-specific: package.json (JS/TS), requirements.txt or pyproject.toml
+           (Python), go.mod (Go), Gemfile (Ruby), Cargo.toml (Rust), pom.xml / build.gradle (Java), etc.
+         - Identify: the language, framework, test runner, and ALL declared dependencies.
+         - You MUST use ONLY the packages already declared in that manifest.
+         - Do NOT invent or assume packages. If it is not in the manifest, it is NOT installed.
 
       B. Read every source file mentioned in the plan using 'read_file'.
          - Read from the feature branch 'feature/${state.issueId}' if it already exists, otherwise from 'main'.
          - Understand the existing code style, imports, and patterns before writing anything.
+
+      ═══════════════════════════════════════════════
+      PACKAGE RULES — READ CAREFULLY
+      ═══════════════════════════════════════════════
+      Every package you import or add MUST be officially and publicly published in the standard
+      package registry for the project's language (e.g. npm for JS/TS, PyPI for Python, Maven
+      Central for Java, RubyGems for Ruby, crates.io for Rust, etc.).
+      Before using any package, ask yourself: "Is this a real, publicly installable package that
+      anyone can download from the standard registry?" If the answer is no, do NOT use it.
+
+      YOUR ONLY SOURCE OF TRUTH for allowed imports is the project's own dependency manifest.
+      Do not import anything not listed there unless you are also adding it to the manifest as a
+      verified, publicly available package.
 
       ═══════════════════════════════════════════════
       PHASE 2 — BRANCH
@@ -83,21 +98,22 @@ async function codeNode(state: typeof CoderState.State) {
       ═══════════════════════════════════════════════
       PHASE 3 — WRITE & COMMIT
       ═══════════════════════════════════════════════
-      1. FRAMEWORK: Use ONLY the framework and libraries discovered in package.json. If the project uses Fastify, write Fastify code. If Express, write Express code. Never substitute.
+      1. FRAMEWORK: Use ONLY the language, framework, and libraries already declared in the project's
+         dependency manifest. Never substitute an alternative framework or library not already present.
 
-      2. NEW PACKAGES: If the plan requires a package that is NOT in package.json:
-         - Add it to the "dependencies" (or "devDependencies") section in package.json.
-         - Commit the updated package.json as one of your files.
-         - Note: you cannot run 'npm install' — adding it to package.json is sufficient for the CI pipeline to install it.
+      2. NEW DEPENDENCIES: If the plan requires a dependency that is NOT in the manifest:
+         - Confirm it is publicly available in the standard registry for this project's language.
+         - You MUST explicitly update the dependency manifest file (e.g. package.json, requirements.txt, go.mod) by adding the new dependency to it.
+         - You MUST then commit the updated manifest file using 'commit_file'.
+         - Note: you cannot run install commands — updating the manifest is sufficient for the CI pipeline to install it.
 
       3. COMMIT RULES for 'commit_file':
-         - JSON ESCAPING: Escape all newlines (\\n), double-quotes (\\"), and backslashes (\\\\) inside the "content" string.
+         - JSON ESCAPING: Escape all newlines (\\n), double-quotes (\"), and backslashes (\\\\) inside the "content" string.
          - FULL CONTENT: Provide the ENTIRE file from line 1 to the last line. No placeholders, no truncation, no ellipses.
          - ONE FILE PER CALL: Call 'commit_file' once per file. Commit every file the plan requires.
          - Do NOT stop until every required file has been successfully committed.
 
       GOAL: All required files committed to 'feature/${state.issueId}'. Do NOT open a Pull Request.`;
-
 
   const reviewSection = state.reviewFeedback
     ? `\n\nREVIEW FEEDBACK (from previous attempt — you MUST address ALL of these):\n${state.reviewFeedback}`
@@ -105,7 +121,10 @@ async function codeNode(state: typeof CoderState.State) {
 
   const messages: any[] = [
     ["system", systemPrompt],
-    ["user", `Execute this plan: ${JSON.stringify(state.plan)}${reviewSection}`],
+    [
+      "user",
+      `Execute this plan: ${JSON.stringify(state.plan)}${reviewSection}`,
+    ],
   ];
 
   let finalResponseStr = "";
@@ -119,7 +138,21 @@ async function codeNode(state: typeof CoderState.State) {
       `[Coder] Thinking... (Step ${stepCount}, tool errors: ${errorCount}/${MAX_TOOL_ERRORS})`,
     );
 
-    const response = await llmWithTools.invoke(messages);
+    let response;
+    try {
+      response = await llmWithTools.invoke(messages);
+    } catch (err: any) {
+      errorCount++;
+      logger.warn(
+        `[Coder] LLM invocation failed (${errorCount}/${MAX_TOOL_ERRORS}): ${err.message}`,
+      );
+      messages.push({
+        role: "user",
+        content: `Your previous tool call failed with a syntax or format error: ${err.message}. Please fix your tool call syntax and try again.`,
+      });
+      continue;
+    }
+
     messages.push(response);
 
     if (response.tool_calls && response.tool_calls.length > 0) {
@@ -138,7 +171,6 @@ async function codeNode(state: typeof CoderState.State) {
         const toolOutput =
           textContent.find((c) => c.type === "text")?.text || "Success";
 
-        // Track errors so we can abort if the LLM is stuck
         if (result.isError) {
           errorCount++;
           logger.warn(
@@ -187,7 +219,7 @@ async function codeNode(state: typeof CoderState.State) {
   };
   try {
     const structuredLlm = llm.withStructuredOutput(CoderResultLLMSchema);
-    finalResult = await structuredLlm.invoke([
+    finalResult = (await structuredLlm.invoke([
       [
         "system",
         `You just completed pushing code to GitHub. Return ONLY a JSON object with these exact fields:
@@ -201,36 +233,51 @@ Do NOT include pullRequestUrl.`,
         "user",
         `Tool Execution Logs (use ONLY this to fill the schema, do not add extra info):\n${finalResponseStr.slice(0, 3000)}`,
       ],
-    ]) as CoderResult;
+    ])) as CoderResult;
   } catch (err: any) {
-    logger.warn(`[Coder] Structured output failed — attempting JSON recovery from error`);
+    logger.warn(
+      `[Coder] Structured output failed — attempting JSON recovery from error`,
+    );
 
     let recovered = false;
     try {
       const errBody = JSON.parse(err.message.replace(/^\d{3} /, ""));
       const raw: string = errBody?.error?.failed_generation ?? "";
-      const stripped = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+      const stripped = raw
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/, "")
+        .trim();
       const parsed = JSON.parse(stripped);
       finalResult = {
         branchName: parsed.branchName ?? `feature/${state.issueId}`,
-        changedFiles: Array.isArray(parsed.changedFiles) ? parsed.changedFiles : [],
+        changedFiles: Array.isArray(parsed.changedFiles)
+          ? parsed.changedFiles
+          : [],
         diffSummary: parsed.diffSummary ?? "Changes committed",
         commitSha: parsed.commitSha ?? "unknown",
         pullRequestUrl: parsed.pullRequestUrl,
       };
       recovered = true;
-      logger.info(`[Coder] Recovered structured output from failed_generation (branch: ${finalResult.branchName})`);
-    } catch (_) {
-    }
+      logger.info(
+        `[Coder] Recovered structured output from failed_generation (branch: ${finalResult.branchName})`,
+      );
+    } catch (_) { }
 
     if (!recovered) {
-      logger.warn(`[Coder] JSON recovery failed — using regex fallback on tool logs`);
+      logger.warn(
+        `[Coder] JSON recovery failed — using regex fallback on tool logs`,
+      );
       const branchMatch = finalResponseStr.match(/feature\/[\w-]+/);
       const shaMatch = finalResponseStr.match(/SHA:\s*([a-f0-9]{40})/i);
-      const committedMatches = [...finalResponseStr.matchAll(/Committed\s+([\w./\-]+)/gi)].map(m => m[1]);
+      const committedMatches = [
+        ...finalResponseStr.matchAll(/Committed\s+([\w./\-]+)/gi),
+      ].map((m) => m[1]);
       finalResult = {
         branchName: branchMatch?.[0] ?? `feature/${state.issueId}`,
-        changedFiles: committedMatches.length > 0 ? committedMatches : (state.plan.filesToChange ?? []),
+        changedFiles:
+          committedMatches.length > 0
+            ? committedMatches
+            : (state.plan.filesToChange ?? []),
         diffSummary: "Code changes committed (regex fallback used)",
         commitSha: shaMatch?.[1] ?? "unknown",
       };

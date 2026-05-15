@@ -1,6 +1,6 @@
 import * as dotenv from "dotenv";
 dotenv.config();
-import { reviewerGraph } from "./reviewer";
+import { reviewerGraph } from "../reviewer";
 import { logger } from "@nex-ai/logger";
 
 async function main() {

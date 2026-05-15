@@ -1,6 +1,6 @@
 import * as dotenv from "dotenv";
 dotenv.config();
-import { plannerGraph } from ".";
+import { plannerGraph } from "..";
 import { logger } from "@nex-ai/logger";
 
 async function runTest() {

@@ -5,9 +5,10 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "test:planner": "tsx ./src/test-planner.ts",
-    "test:coder": "tsx ./src/test-coder.ts",
-    "test:reviewer": "tsx ./src/test-reviewer.ts"
+    "test:planner": "tsx ./src/tests/test-planner.ts",
+    "test:coder": "tsx ./src/tests/test-coder.ts",
+    "test:reviewer": "tsx ./src/tests/test-reviewer.ts",
+    "test:deployer": "tsx ./src/tests/test-deployer.ts"
   },
   "keywords": [],
   "author": "",

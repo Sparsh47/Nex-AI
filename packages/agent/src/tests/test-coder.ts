@@ -1,6 +1,6 @@
 import * as dotenv from "dotenv";
 dotenv.config();
-import { coderGraph } from ".";
+import { coderGraph } from "..";
 import { logger } from "@nex-ai/logger";
 
 const REPO_NAME = "Sparsh47/nex-ai-test-repo";

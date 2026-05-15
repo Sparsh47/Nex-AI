@@ -1,6 +1,7 @@
+import { deployerGraph } from "@nex-ai/agent";
 import { logger } from "@nex-ai/logger";
 import { Worker, connection, Job } from "@nex-ai/queue";
-import { DeployerJobPayload, DeployerResult } from "@nex-ai/types";
+import { DeployerJobPayload } from "@nex-ai/types";
 
 logger.info("🚀 Deployer Worker Booting Up...");
 
@@ -12,18 +13,19 @@ export const deployerWorker = new Worker<DeployerJobPayload>(
       `[Deployer] Approval status: ${job.data.reviewerResult.status}`,
     );
 
-    const mockResult: DeployerResult = {
-      prUrl: "https://github.com/your-org/repo/pull/123",
-      mergeStatus: "merged",
-      testResults: "All CI checks passed.",
-      isLinearIssueDone: true,
-    };
+    const state = await deployerGraph.invoke({
+      issueId: job.data.issueId,
+      repository: job.data.repositoryName,
+      reviewerResult: job.data.reviewerResult,
+    });
+
+    const result = state.finalDeployment;
 
     logger.info(
       `[Deployer] 🎉 Pipeline Complete! Issue ${job.data.issueId} is merged.`,
     );
 
-    return mockResult;
+    return result;
   },
   {
     connection,

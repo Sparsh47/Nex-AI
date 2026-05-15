@@ -41,5 +41,7 @@ export type ReviewerJobPayload = z.infer<typeof ReviewerJobPayloadSchema>;
 export const DeployerJobPayloadSchema = BaseJobPayloadSchema.extend({
   reviewerResult: ReviewerResultSchema,
   repositoryName: z.string(),
+  branchName: z.string(),
+  issueName: z.string(),
 });
 export type DeployerJobPayload = z.infer<typeof DeployerJobPayloadSchema>;

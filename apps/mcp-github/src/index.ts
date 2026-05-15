@@ -123,6 +123,29 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["owner", "repo", "title", "body", "head", "base"],
       },
     },
+    {
+      name: "merge_pull_request",
+      description: "Merges an open pull request into main branch",
+      inputSchema: {
+        type: "object",
+        properties: {
+          owner: { type: "string" },
+          repo: { type: "string" },
+          pullRequestNumber: { type: "integer" },
+          commit_title: {
+            type: "string",
+            description: "Optional: Title for the merge commit",
+          },
+          merge_method: {
+            type: "string",
+            description:
+              "Optional: Merge strategy ('merge', 'squash', or 'rebase'). Defaults to 'squash'.",
+            enum: ["merge", "squash", "rebase"],
+          },
+        },
+        required: ["owner", "repo", "pullRequestNumber"],
+      },
+    },
   ],
 }));
 
@@ -275,6 +298,62 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return {
         content: [{ type: "text", text: `PR Created: ${pr.data.html_url}` }],
       };
+    }
+
+    if (name === "merge_pull_request") {
+      const { owner, repo, pullRequestNumber, commit_title, merge_method } =
+        args as any;
+      try {
+        const response = await octokit.pulls.merge({
+          owner,
+          repo,
+          pull_number: Number(pullRequestNumber),
+          commit_title,
+          merge_method: merge_method || "squash",
+        });
+
+        if (response.data.merged) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Successfully merged PR #${pullRequestNumber}! Merge commit SHA: ${response.data.sha}`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `PR #${pullRequestNumber} could not be merged. Message: ${response.data.message}`,
+              },
+            ],
+          };
+        }
+      } catch (error: any) {
+        if (error.status === 405) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Merge not allowed: The PR might not be mergeable (e.g., failing checks).`,
+              },
+            ],
+          };
+        } else if (error.status === 409) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Merge conflict: The head branch was modified or there are conflicting files.`,
+              },
+            ],
+          };
+        }
+
+        throw new Error(`Failed to merge PR: ${error.message}`);
+      }
     }
 
     throw new Error(`Tool not found: ${name}`);

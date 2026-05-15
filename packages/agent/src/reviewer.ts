@@ -95,9 +95,16 @@ async function reviewNode(state: typeof ReviewerState.State) {
       CODE PRODUCED (${fileContents.length} of ${state.coderResult.changedFiles.length} files readable):
       ${JSON.stringify(fileContents)}
 
+      ⚠️  PACKAGE REVIEW RULE:
+      Every import in the generated code must be from a package that is officially and publicly
+      published in the standard registry for the project's language (npm, PyPI, Maven Central,
+      RubyGems, crates.io, etc.) or is a standard library / language built-in.
+      If you see any import that cannot be publicly installed from the standard registry, flag it
+      as REQUEST_CHANGES with the reason "uses non-existent or non-public package".
+
       YOUR TASK:
       1. Verify if all Acceptance Criteria were met.
-      2. Check for common issues (missing imports, syntax errors).
+      2. Check for common issues (missing imports, syntax errors, use of non-existent packages).
       3. Provide a detailed summary of the review.
       4. Start your response with "APPROVE" or "REQUEST_CHANGES".`;
 
