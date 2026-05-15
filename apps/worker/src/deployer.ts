@@ -1,6 +1,6 @@
 import { deployerGraph } from "@nex-ai/agent";
 import { logger } from "@nex-ai/logger";
-import { Worker, connection, Job } from "@nex-ai/queue";
+import { Worker, connection, Job, publishMessage } from "@nex-ai/queue";
 import { DeployerJobPayload } from "@nex-ai/types";
 
 logger.info("🚀 Deployer Worker Booting Up...");
@@ -13,6 +13,16 @@ export const deployerWorker = new Worker<DeployerJobPayload>(
       `[Deployer] Approval status: ${job.data.reviewerResult.status}`,
     );
 
+    await publishMessage({
+      jobId: job.data.jobId,
+      agentName: "DEPLOYER",
+      timestamp: Date.now(),
+      data: {
+        eventType: "THINKING",
+        content: `Finalizing deployment for: ${job.data.issueId}`,
+      },
+    });
+
     const state = await deployerGraph.invoke({
       issueId: job.data.issueId,
       repository: job.data.repositoryName,
@@ -24,6 +34,16 @@ export const deployerWorker = new Worker<DeployerJobPayload>(
     logger.info(
       `[Deployer] 🎉 Pipeline Complete! Issue ${job.data.issueId} is merged.`,
     );
+
+    await publishMessage({
+      jobId: job.data.jobId,
+      agentName: "DEPLOYER",
+      timestamp: Date.now(),
+      data: {
+        eventType: "RESULT",
+        output: `Pipeline Complete! Issue ${job.data.issueId} is merged.`,
+      },
+    });
 
     return result;
   },

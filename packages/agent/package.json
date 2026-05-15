@@ -8,8 +8,10 @@
     "test:planner": "tsx ./src/tests/test-planner.ts",
     "test:coder": "tsx ./src/tests/test-coder.ts",
     "test:reviewer": "tsx ./src/tests/test-reviewer.ts",
-    "test:deployer": "tsx ./src/tests/test-deployer.ts"
+    "test:deployer": "tsx ./src/tests/test-deployer.ts",
+    "test:pub-sub": "tsx ./src/tests/test-pub-sub.ts"
   },
+  "type": "module",
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -24,6 +26,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@nex-ai/logger": "workspace:*",
     "@nex-ai/types": "workspace:*",
+    "@nex-ai/queue": "workspace:*",
     "dotenv": "^17.4.2",
     "zod": "^4.4.3"
   }

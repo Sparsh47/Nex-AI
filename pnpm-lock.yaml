@@ -187,6 +187,9 @@ importers:
       '@nex-ai/logger':
         specifier: workspace:*
         version: link:../logger
+      '@nex-ai/queue':
+        specifier: workspace:*
+        version: link:../queue
       '@nex-ai/types':
         specifier: workspace:*
         version: link:../types

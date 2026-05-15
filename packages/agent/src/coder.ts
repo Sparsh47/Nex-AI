@@ -8,6 +8,7 @@ import { CoderResult, PlannerResult } from "@nex-ai/types";
 import { z } from "zod";
 import { llm } from ".";
 import { logger } from "@nex-ai/logger";
+import { publishMessage } from "@nex-ai/queue";
 
 const transport = new StdioClientTransport({
   command: "npx",
@@ -146,6 +147,17 @@ async function codeNode(state: typeof CoderState.State) {
       logger.warn(
         `[Coder] LLM invocation failed (${errorCount}/${MAX_TOOL_ERRORS}): ${err.message}`,
       );
+
+      await publishMessage({
+        jobId: "",
+        agentName: "CODER",
+        timestamp: Date.now(),
+        data: {
+          eventType: "ERROR",
+          message: `LLM invocation failed (${errorCount}/${MAX_TOOL_ERRORS}): ${err.message}`,
+        },
+      });
+
       messages.push({
         role: "user",
         content: `Your previous tool call failed with a syntax or format error: ${err.message}. Please fix your tool call syntax and try again.`,
@@ -158,6 +170,17 @@ async function codeNode(state: typeof CoderState.State) {
     if (response.tool_calls && response.tool_calls.length > 0) {
       for (const toolCall of response.tool_calls) {
         logger.info(`[Coder] Executing tool: ${toolCall.name}`);
+
+        await publishMessage({
+          jobId: "",
+          agentName: "CODER",
+          timestamp: Date.now(),
+          data: {
+            eventType: "TOOL_CALL",
+            toolName: toolCall.name,
+            args: toolCall.args,
+          },
+        });
 
         const result = await githubClient.callTool({
           name: toolCall.name,
@@ -173,6 +196,17 @@ async function codeNode(state: typeof CoderState.State) {
 
         if (result.isError) {
           errorCount++;
+
+          await publishMessage({
+            jobId: "",
+            agentName: "CODER",
+            timestamp: Date.now(),
+            data: {
+              eventType: "ERROR",
+              message: `Tool '${toolCall.name}' returned an error: ${toolOutput}`,
+            },
+          });
+
           logger.warn(
             `[Coder] Tool '${toolCall.name}' returned an error (${errorCount}/${MAX_TOOL_ERRORS}): ${toolOutput}`,
           );
@@ -197,6 +231,16 @@ async function codeNode(state: typeof CoderState.State) {
     logger.warn(
       `[Coder] Stopped after hitting ${MAX_TOOL_ERRORS} tool errors across ${stepCount} steps.`,
     );
+
+    await publishMessage({
+      jobId: "",
+      agentName: "CODER",
+      timestamp: Date.now(),
+      data: {
+        eventType: "ERROR",
+        message: `Stopped after hitting ${MAX_TOOL_ERRORS} tool errors across ${stepCount} steps.`,
+      },
+    });
   }
 
   logger.info(
@@ -261,7 +305,7 @@ Do NOT include pullRequestUrl.`,
       logger.info(
         `[Coder] Recovered structured output from failed_generation (branch: ${finalResult.branchName})`,
       );
-    } catch (_) { }
+    } catch (_) {}
 
     if (!recovered) {
       logger.warn(

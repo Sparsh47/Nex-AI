@@ -7,6 +7,7 @@ import { Annotation, StateGraph } from "@langchain/langgraph";
 import { CoderResult, PlannerResult } from "@nex-ai/types";
 import { logger } from "@nex-ai/logger";
 import { llm } from ".";
+import { publishMessage } from "@nex-ai/queue";
 
 const transport = new StdioClientTransport({
   command: "npx",
@@ -52,6 +53,17 @@ async function reviewNode(state: typeof ReviewerState.State) {
     await Promise.all(
       state.coderResult.changedFiles.map(async (filePath) => {
         try {
+          await publishMessage({
+            jobId: "",
+            agentName: "REVIEWER",
+            timestamp: Date.now(),
+            data: {
+              eventType: "TOOL_CALL",
+              toolName: "read_file",
+              args: { owner, repo, path: filePath, branch: branchName },
+            },
+          });
+
           const result = await githubClient.callTool({
             name: "read_file",
             arguments: { owner, repo, path: filePath, branch: branchName },
@@ -62,12 +74,30 @@ async function reviewNode(state: typeof ReviewerState.State) {
 
           // If the MCP server returned an error (e.g. 404), skip this file
           if (result.isError || text.startsWith("GitHub API Error")) {
+            await publishMessage({
+              jobId: "",
+              agentName: "REVIEWER",
+              timestamp: Date.now(),
+              data: {
+                eventType: "ERROR",
+                message: `Tool 'read_file' returned an error: ${text}`,
+              },
+            });
             logger.warn(`[Reviewer] Could not read ${filePath} from branch ${branchName} — skipping`);
             return null;
           }
 
           return { path: filePath, content: text };
         } catch (err: any) {
+          await publishMessage({
+            jobId: "",
+            agentName: "REVIEWER",
+            timestamp: Date.now(),
+            data: {
+              eventType: "ERROR",
+              message: `Failed to read ${filePath}: ${err.message}`,
+            },
+          });
           logger.warn(`[Reviewer] Failed to read ${filePath}: ${err.message} — skipping`);
           return null;
         }

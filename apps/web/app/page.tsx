@@ -29,7 +29,7 @@ export default function Home() {
         const data = await response.json();
 
         if (data.status === "job-enqueued") {
-          setMessage(data.payload.linearIssueUrl);
+          setMessage(data.payload.jobId);
         } else {
           setMessage("Error fetching from api service");
         }

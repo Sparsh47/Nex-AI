@@ -1,6 +1,12 @@
 import { coderGraph } from "@nex-ai/agent";
 import { logger } from "@nex-ai/logger";
-import { Worker, connection, Job, reviewerQueue } from "@nex-ai/queue";
+import {
+  Worker,
+  connection,
+  Job,
+  reviewerQueue,
+  publishMessage,
+} from "@nex-ai/queue";
 import { CoderJobPayload } from "@nex-ai/types";
 
 logger.info("💻 Coder Worker Booting Up...");
@@ -13,6 +19,16 @@ export const coderWorker = new Worker<CoderJobPayload>(
       `[Coder] Context received: ${job.data.plannerResult.approachSummary}`,
     );
 
+    await publishMessage({
+      jobId: job.data.jobId,
+      agentName: "CODER",
+      timestamp: Date.now(),
+      data: {
+        eventType: "THINKING",
+        content: `Writing code for: ${job.data.issueId}`,
+      },
+    });
+
     const state = await coderGraph.invoke({
       issueId: job.data.issueId,
       repository: job.data.repositoryName,
@@ -23,6 +39,16 @@ export const coderWorker = new Worker<CoderJobPayload>(
     });
 
     const result = state.finalCode;
+
+    await publishMessage({
+      jobId: job.data.jobId,
+      agentName: "CODER",
+      timestamp: Date.now(),
+      data: {
+        eventType: "RESULT",
+        output: result,
+      },
+    });
 
     await reviewerQueue.add("reviewer-task", {
       jobId: job.data.jobId,

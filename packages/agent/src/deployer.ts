@@ -11,6 +11,7 @@ import {
 } from "@nex-ai/types";
 import { llm } from ".";
 import { logger } from "@nex-ai/logger";
+import { publishMessage } from "@nex-ai/queue";
 
 const transport = new StdioClientTransport({
   command: "npx",
@@ -87,6 +88,17 @@ async function deployNode(state: typeof DeployerState.State) {
       response = await llmWithTools.invoke(messages);
     } catch (err: any) {
       logger.warn(`[Deployer] LLM invocation failed: ${err.message}`);
+
+      await publishMessage({
+        jobId: "",
+        agentName: "DEPLOYER",
+        timestamp: Date.now(),
+        data: {
+          eventType: "ERROR",
+          message: `LLM invocation failed: ${err.message}`,
+        },
+      });
+
       messages.push({
         role: "user",
         content: `Your previous tool call failed with a syntax or format error: ${err.message}. Please fix your tool call syntax and try again.`,
@@ -99,6 +111,17 @@ async function deployNode(state: typeof DeployerState.State) {
       for (const toolCall of response.tool_calls) {
         logger.info(`[Deployer] Executing tool: ${toolCall.name}`);
 
+        await publishMessage({
+          jobId: "",
+          agentName: "DEPLOYER",
+          timestamp: Date.now(),
+          data: {
+            eventType: "TOOL_CALL",
+            toolName: toolCall.name,
+            args: toolCall.args,
+          },
+        });
+
         const result = await githubClient.callTool({
           name: toolCall.name,
           arguments: { ...toolCall.args, owner, repo },
@@ -110,6 +133,18 @@ async function deployNode(state: typeof DeployerState.State) {
         }>;
         const toolOutput =
           textContent.find((c) => c.type === "text")?.text || "Success";
+
+        if (result.isError) {
+          await publishMessage({
+            jobId: "",
+            agentName: "DEPLOYER",
+            timestamp: Date.now(),
+            data: {
+              eventType: "ERROR",
+              message: `Tool '${toolCall.name}' returned an error: ${toolOutput}`,
+            },
+          });
+        }
 
         messages.push({
           role: "tool",

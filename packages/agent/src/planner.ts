@@ -6,6 +6,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio";
 import { Client } from "@modelcontextprotocol/sdk/client/index";
 import { llm } from ".";
 import { PlannerResult, PlannerResultSchema } from "@nex-ai/types";
+import { publishMessage } from "@nex-ai/queue";
 
 const linearTransport = new StdioClientTransport({
   command: "npx",
@@ -56,6 +57,17 @@ async function planNode(state: typeof PlannerState.State) {
 
   const [owner, repo] = state.repositoryName.split("/");
 
+  await publishMessage({
+    jobId: "",
+    agentName: "PLANNER",
+    timestamp: Date.now(),
+    data: {
+      eventType: "TOOL_CALL",
+      toolName: "list_files",
+      args: { owner, repo, path: "src" },
+    },
+  });
+
   const repoContent = await githubClient.callTool({
     name: "list_files",
     arguments: { owner, repo, path: "src" },
@@ -85,6 +97,18 @@ async function planNode(state: typeof PlannerState.State) {
   let issueContext = "";
   if (researchResponse.tool_calls?.[0]) {
     const toolCall = researchResponse.tool_calls[0];
+
+    await publishMessage({
+      jobId: "",
+      agentName: "PLANNER",
+      timestamp: Date.now(),
+      data: {
+        eventType: "TOOL_CALL",
+        toolName: toolCall.name,
+        args: toolCall.args,
+      },
+    });
+
     const result = await linearClient.callTool({
       name: toolCall.name,
       arguments: toolCall.args,

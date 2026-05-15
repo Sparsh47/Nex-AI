@@ -6,6 +6,7 @@ import {
   Job,
   deployerQueue,
   coderQueue,
+  publishMessage,
 } from "@nex-ai/queue";
 import { ReviewerJobPayload, ReviewerResult } from "@nex-ai/types";
 
@@ -22,6 +23,16 @@ export const reviewerWorker = new Worker<ReviewerJobPayload>(
       `[Reviewer Worker] Inspecting branch: ${job.data.coderResult.branchName}`,
     );
 
+    await publishMessage({
+      jobId: job.data.jobId,
+      agentName: "REVIEWER",
+      timestamp: Date.now(),
+      data: {
+        eventType: "THINKING",
+        content: `Checking code for: ${job.data.issueId}`,
+      },
+    });
+
     const state = await reviewerGraph.invoke({
       issueId: job.data.issueId,
       repository: job.data.repositoryName,
@@ -31,6 +42,16 @@ export const reviewerWorker = new Worker<ReviewerJobPayload>(
 
     const report = state.reviewSummary;
     logger.info(`[Reviewer Worker] Review Complete. Result:\n${report}`);
+
+    await publishMessage({
+      jobId: job.data.jobId,
+      agentName: "REVIEWER",
+      timestamp: Date.now(),
+      data: {
+        eventType: "RESULT",
+        output: report,
+      },
+    });
 
     const isApproved = report.includes("APPROVE");
 
@@ -53,6 +74,8 @@ export const reviewerWorker = new Worker<ReviewerJobPayload>(
         timestamp: Date.now(),
         reviewerResult: finalResult,
         repositoryName: job.data.repositoryName,
+        branchName: job.data.coderResult.branchName,
+        issueName: job.data.issueId,
       });
     } else if (finalResult.status === "changes_requested") {
       if (reviewAttempt >= MAX_REVIEW_RETRIES) {
@@ -71,7 +94,7 @@ export const reviewerWorker = new Worker<ReviewerJobPayload>(
           reviewFeedback: finalResult,
           repositoryName: job.data.repositoryName,
           reviewAttempt: reviewAttempt + 1,
-        } as any);
+        });
       }
     }
 
