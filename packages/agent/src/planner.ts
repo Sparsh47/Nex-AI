@@ -47,13 +47,22 @@ export const PlannerState = Annotation.Root({
   finalPlan: Annotation<PlannerResult>(),
 });
 
+let linearConnectionPromise: Promise<void> | null = null;
+let githubConnectionPromise: Promise<void> | null = null;
+
 async function planNode(state: typeof PlannerState.State) {
   if (!linearClient.transport) {
-    await linearClient.connect(linearTransport);
+    if (!linearConnectionPromise) {
+      linearConnectionPromise = linearClient.connect(linearTransport);
+    }
+    await linearConnectionPromise;
   }
 
   if (!githubClient.transport) {
-    await githubClient.connect(githubTransport);
+    if (!githubConnectionPromise) {
+      githubConnectionPromise = githubClient.connect(githubTransport);
+    }
+    await githubConnectionPromise;
   }
 
   const [owner, repo] = state.repositoryName.split("/");

@@ -35,9 +35,14 @@ export const CoderState = Annotation.Root({
   finalCode: Annotation<CoderResult>(),
 });
 
+let connectionPromise: Promise<void> | null = null;
+
 async function codeNode(state: typeof CoderState.State) {
   if (!githubClient.transport) {
-    await githubClient.connect(transport);
+    if (!connectionPromise) {
+      connectionPromise = githubClient.connect(transport);
+    }
+    await connectionPromise;
   }
 
   const { tools } = await githubClient.listTools();
@@ -314,7 +319,7 @@ Do NOT include pullRequestUrl.`,
       const shaMatch = finalResponseStr.match(/SHA:\s*([a-f0-9]{40})/i);
       const committedMatches = [
         ...finalResponseStr.matchAll(/Committed\s+([\w./\-]+)/gi),
-      ].map((m) => m[1]);
+      ].map((m) => m[1].replace(/[.,]$/, ""));
       finalResult = {
         branchName: branchMatch?.[0] ?? `feature/${state.issueId}`,
         changedFiles:

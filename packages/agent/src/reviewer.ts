@@ -39,16 +39,25 @@ export const ReviewerState = Annotation.Root({
   reviewSummary: Annotation<string>(),
 });
 
+let connectionPromise: Promise<void> | null = null;
+
 async function reviewNode(state: typeof ReviewerState.State) {
   if (!githubClient.transport) {
-    githubClient.connect(transport);
+    if (!connectionPromise) {
+      connectionPromise = githubClient.connect(transport);
+    }
+    await connectionPromise;
   }
 
   const [owner, repo] = state.repository.split("/");
-
   const branchName = state.coderResult.branchName;
 
-  logger.info(`[Reviewer] Starting review for branch: ${branchName}`);
+  logger.info(
+    `[Reviewer] Starting review for branch: ${branchName} in ${owner}/${repo}`,
+  );
+  logger.info(
+    `[Reviewer] Files to review: ${state.coderResult.changedFiles.join(", ") || "NONE"}`,
+  );
 
   const fileContents = (
     await Promise.all(
@@ -84,9 +93,15 @@ async function reviewNode(state: typeof ReviewerState.State) {
                 message: `Tool 'read_file' returned an error: ${text}`,
               },
             });
-            logger.warn(`[Reviewer] Could not read ${filePath} from branch ${branchName} — skipping`);
+            logger.warn(
+              `[Reviewer] Could not read ${filePath} from branch ${branchName} — skipping`,
+            );
             return null;
           }
+
+          logger.info(
+            `[Reviewer] Successfully read ${filePath} (${text.length} chars)`,
+          );
 
           return { path: filePath, content: text };
         } catch (err: any) {

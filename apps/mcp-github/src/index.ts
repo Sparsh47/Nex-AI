@@ -279,7 +279,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [
           {
             type: "text",
-            text: `Committed ${path}. SHA: ${response.data.commit.sha}`,
+            text: `Committed ${path} SHA: ${response.data.commit.sha}`,
           },
         ],
       };

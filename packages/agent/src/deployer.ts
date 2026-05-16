@@ -37,8 +37,15 @@ export const DeployerState = Annotation.Root({
   finalDeployment: Annotation<DeployerResult>(),
 });
 
+let connectionPromise: Promise<void> | null = null;
+
 async function deployNode(state: typeof DeployerState.State) {
-  if (!githubClient.transport) await githubClient.connect(transport);
+  if (!githubClient.transport) {
+    if (!connectionPromise) {
+      connectionPromise = githubClient.connect(transport);
+    }
+    await connectionPromise;
+  }
 
   const { tools } = await githubClient.listTools();
   const formattedTools = tools.map((t) => {
