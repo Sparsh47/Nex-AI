@@ -27,6 +27,7 @@ const githubClient = new Client(
 );
 
 export const CoderState = Annotation.Root({
+  jobId: Annotation<string>(),
   issueId: Annotation<string>(),
   repository: Annotation<string>(),
   plan: Annotation<PlannerResult>(),
@@ -41,14 +42,26 @@ async function codeNode(state: typeof CoderState.State) {
 
   const { tools } = await githubClient.listTools();
 
-  const formattedTools = tools.map((t) => ({
-    type: "function",
-    function: {
-      name: t.name,
-      description: t.description || "",
-      parameters: t.inputSchema as any,
-    },
-  }));
+  const formattedTools = tools.map((t) => {
+    const inputSchema = JSON.parse(JSON.stringify(t.inputSchema || {}));
+    if (inputSchema?.properties) {
+      delete inputSchema.properties.owner;
+      delete inputSchema.properties.repo;
+    }
+    if (inputSchema?.required) {
+      inputSchema.required = inputSchema.required.filter(
+        (r: string) => r !== "owner" && r !== "repo"
+      );
+    }
+    return {
+      type: "function",
+      function: {
+        name: t.name,
+        description: t.description || "",
+        parameters: inputSchema as any,
+      },
+    };
+  });
 
   const llmWithTools = llm.bindTools(formattedTools, {
     parallel_tool_calls: false,
@@ -61,60 +74,46 @@ async function codeNode(state: typeof CoderState.State) {
   const systemPrompt = `You are an autonomous AI Software Engineer working on the repository: ${owner}/${repo}.
 
       ═══════════════════════════════════════════════
-      MANDATORY PHASE 1 — DISCOVERY (do this FIRST, before any commits)
+      PHASE 1 — BRANCH (do this FIRST)
       ═══════════════════════════════════════════════
-      Before writing a single line of code you MUST:
-
-      A. Identify the project's language and read its dependency manifest using 'read_file'.
-         - The manifest is language-specific: package.json (JS/TS), requirements.txt or pyproject.toml
-           (Python), go.mod (Go), Gemfile (Ruby), Cargo.toml (Rust), pom.xml / build.gradle (Java), etc.
-         - Identify: the language, framework, test runner, and ALL declared dependencies.
-         - You MUST use ONLY the packages already declared in that manifest.
-         - Do NOT invent or assume packages. If it is not in the manifest, it is NOT installed.
-
-      B. Read every source file mentioned in the plan using 'read_file'.
-         - Read from the feature branch 'feature/${state.issueId}' if it already exists, otherwise from 'main'.
-         - Understand the existing code style, imports, and patterns before writing anything.
-
-      ═══════════════════════════════════════════════
-      PACKAGE RULES — READ CAREFULLY
-      ═══════════════════════════════════════════════
-      Every package you import or add MUST be officially and publicly published in the standard
-      package registry for the project's language (e.g. npm for JS/TS, PyPI for Python, Maven
-      Central for Java, RubyGems for Ruby, crates.io for Rust, etc.).
-      Before using any package, ask yourself: "Is this a real, publicly installable package that
-      anyone can download from the standard registry?" If the answer is no, do NOT use it.
-
-      YOUR ONLY SOURCE OF TRUTH for allowed imports is the project's own dependency manifest.
-      Do not import anything not listed there unless you are also adding it to the manifest as a
-      verified, publicly available package.
-
-      ═══════════════════════════════════════════════
-      PHASE 2 — BRANCH
-      ═══════════════════════════════════════════════
-      Attempt to create a branch named 'feature/${state.issueId}'.
+      Attempt to create a new branch named 'feature/${state.issueId}'.
       - A 422 "Reference already exists" response means the branch already exists — this is a SUCCESS, not an error.
       - DO NOT create a branch with a suffix (e.g. feature/${state.issueId}-2). Always use exactly 'feature/${state.issueId}'.
 
       ═══════════════════════════════════════════════
+      PHASE 2 — DISCOVERY
+      ═══════════════════════════════════════════════
+      Before writing a single line of code you MUST:
+
+      A. Read ALL relevant files in the newly created branch 'feature/${state.issueId}'.
+         - Use 'list_dir' or 'search' if available, or 'read_file' to understand the project structure.
+         - You must read all files in that branch to decide which files to pick and work on.
+
+      B. Identify the project's language and read its dependency manifest using 'read_file'.
+         - You MUST use ONLY the packages already declared in that manifest.
+         - Do NOT invent or assume packages. If it is not in the manifest, it is NOT installed.
+         - Understand the existing code style, imports, and patterns before writing anything.
+
+      ═══════════════════════════════════════════════
+      PACKAGE RULES
+      ═══════════════════════════════════════════════
+      Every package you import or add MUST be officially and publicly published in the standard
+      package registry for the project's language. Before using any package, ask yourself:
+      "Is this a real, publicly installable package?" If no, do NOT use it.
+      YOUR ONLY SOURCE OF TRUTH for allowed imports is the project's own dependency manifest.
+
+      ═══════════════════════════════════════════════
       PHASE 3 — WRITE & COMMIT
       ═══════════════════════════════════════════════
-      1. FRAMEWORK: Use ONLY the language, framework, and libraries already declared in the project's
-         dependency manifest. Never substitute an alternative framework or library not already present.
-
-      2. NEW DEPENDENCIES: If the plan requires a dependency that is NOT in the manifest:
-         - Confirm it is publicly available in the standard registry for this project's language.
-         - You MUST explicitly update the dependency manifest file (e.g. package.json, requirements.txt, go.mod) by adding the new dependency to it.
-         - You MUST then commit the updated manifest file using 'commit_file'.
-         - Note: you cannot run install commands — updating the manifest is sufficient for the CI pipeline to install it.
-
+      1. FRAMEWORK: Use ONLY the language, framework, and libraries already declared.
+      2. NEW DEPENDENCIES: If required, explicitly update the dependency manifest file and commit it.
       3. COMMIT RULES for 'commit_file':
-         - JSON ESCAPING: Escape all newlines (\\n), double-quotes (\"), and backslashes (\\\\) inside the "content" string.
-         - FULL CONTENT: Provide the ENTIRE file from line 1 to the last line. No placeholders, no truncation, no ellipses.
-         - ONE FILE PER CALL: Call 'commit_file' once per file. Commit every file the plan requires.
-         - Do NOT stop until every required file has been successfully committed.
+         - JSON ESCAPING: Escape all newlines (\\n), double-quotes (\"), and backslashes (\\\\) inside "content".
+         - FULL CONTENT: Provide the ENTIRE file from line 1 to the last line.
+         - ONE FILE PER CALL: Call 'commit_file' once per file.
 
-      GOAL: All required files committed to 'feature/${state.issueId}'. Do NOT open a Pull Request.`;
+      GOAL: All required files committed to 'feature/${state.issueId}'.
+      IMPORTANT: Do NOT open a Pull Request under any circumstances. Pull requests should be created ONLY by the Deployer agent and NOT by the Coder.`;
 
   const reviewSection = state.reviewFeedback
     ? `\n\nREVIEW FEEDBACK (from previous attempt — you MUST address ALL of these):\n${state.reviewFeedback}`
@@ -149,7 +148,7 @@ async function codeNode(state: typeof CoderState.State) {
       );
 
       await publishMessage({
-        jobId: "",
+        jobId: state.jobId,
         agentName: "CODER",
         timestamp: Date.now(),
         data: {
@@ -172,7 +171,7 @@ async function codeNode(state: typeof CoderState.State) {
         logger.info(`[Coder] Executing tool: ${toolCall.name}`);
 
         await publishMessage({
-          jobId: "",
+          jobId: state.jobId,
           agentName: "CODER",
           timestamp: Date.now(),
           data: {
@@ -198,7 +197,7 @@ async function codeNode(state: typeof CoderState.State) {
           errorCount++;
 
           await publishMessage({
-            jobId: "",
+            jobId: state.jobId,
             agentName: "CODER",
             timestamp: Date.now(),
             data: {
@@ -233,7 +232,7 @@ async function codeNode(state: typeof CoderState.State) {
     );
 
     await publishMessage({
-      jobId: "",
+      jobId: state.jobId,
       agentName: "CODER",
       timestamp: Date.now(),
       data: {

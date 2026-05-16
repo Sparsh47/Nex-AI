@@ -34,6 +34,7 @@ export const reviewerWorker = new Worker<ReviewerJobPayload>(
     });
 
     const state = await reviewerGraph.invoke({
+      jobId: job.data.jobId,
       issueId: job.data.issueId,
       repository: job.data.repositoryName,
       plannerResult: job.data.plannerResult,

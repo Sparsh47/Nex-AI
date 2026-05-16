@@ -24,6 +24,7 @@ export const deployerWorker = new Worker<DeployerJobPayload>(
     });
 
     const state = await deployerGraph.invoke({
+      jobId: job.data.jobId,
       issueId: job.data.issueId,
       repository: job.data.repositoryName,
       reviewerResult: job.data.reviewerResult,

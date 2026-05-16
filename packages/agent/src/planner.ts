@@ -41,6 +41,7 @@ const githubClient = new Client(
 );
 
 export const PlannerState = Annotation.Root({
+  jobId: Annotation<string>(),
   issueId: Annotation<string>(),
   repositoryName: Annotation<string>(),
   finalPlan: Annotation<PlannerResult>(),
@@ -58,7 +59,7 @@ async function planNode(state: typeof PlannerState.State) {
   const [owner, repo] = state.repositoryName.split("/");
 
   await publishMessage({
-    jobId: "",
+    jobId: state.jobId,
     agentName: "PLANNER",
     timestamp: Date.now(),
     data: {
@@ -99,7 +100,7 @@ async function planNode(state: typeof PlannerState.State) {
     const toolCall = researchResponse.tool_calls[0];
 
     await publishMessage({
-      jobId: "",
+      jobId: state.jobId,
       agentName: "PLANNER",
       timestamp: Date.now(),
       data: {

@@ -31,6 +31,7 @@ const githubClient = new Client(
 );
 
 export const ReviewerState = Annotation.Root({
+  jobId: Annotation<string>(),
   issueId: Annotation<string>(),
   repository: Annotation<string>(),
   plannerResult: Annotation<PlannerResult>(),
@@ -54,7 +55,7 @@ async function reviewNode(state: typeof ReviewerState.State) {
       state.coderResult.changedFiles.map(async (filePath) => {
         try {
           await publishMessage({
-            jobId: "",
+            jobId: state.jobId,
             agentName: "REVIEWER",
             timestamp: Date.now(),
             data: {
@@ -75,7 +76,7 @@ async function reviewNode(state: typeof ReviewerState.State) {
           // If the MCP server returned an error (e.g. 404), skip this file
           if (result.isError || text.startsWith("GitHub API Error")) {
             await publishMessage({
-              jobId: "",
+              jobId: state.jobId,
               agentName: "REVIEWER",
               timestamp: Date.now(),
               data: {
@@ -90,7 +91,7 @@ async function reviewNode(state: typeof ReviewerState.State) {
           return { path: filePath, content: text };
         } catch (err: any) {
           await publishMessage({
-            jobId: "",
+            jobId: state.jobId,
             agentName: "REVIEWER",
             timestamp: Date.now(),
             data: {

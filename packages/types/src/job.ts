@@ -36,6 +36,7 @@ export const ReviewerJobPayloadSchema = BaseJobPayloadSchema.extend({
   coderResult: CoderResultSchema,
   plannerResult: PlannerResultSchema,
   repositoryName: z.string(),
+  reviewAttempt: z.number().optional(),
 });
 export type ReviewerJobPayload = z.infer<typeof ReviewerJobPayloadSchema>;
 

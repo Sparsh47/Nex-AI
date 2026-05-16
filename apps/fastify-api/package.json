@@ -12,10 +12,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@nex-ai/logger": "workspace:*",
     "@nex-ai/queue": "workspace:*",
-    "fastify": "^5.8.5",
     "@nex-ai/types": "workspace:*",
-    "@nex-ai/logger": "workspace:*"
+    "fastify": "^5.8.5"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

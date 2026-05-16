@@ -23,10 +23,11 @@
     "@langchain/core": "^1.1.45",
     "@langchain/groq": "^1.2.0",
     "@langchain/langgraph": "^1.3.0",
+    "@langchain/openai": "^1.4.5",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@nex-ai/logger": "workspace:*",
-    "@nex-ai/types": "workspace:*",
     "@nex-ai/queue": "workspace:*",
+    "@nex-ai/types": "workspace:*",
     "dotenv": "^17.4.2",
     "zod": "^4.4.3"
   }

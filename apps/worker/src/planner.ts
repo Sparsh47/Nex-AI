@@ -24,6 +24,7 @@ export const plannerWorker = new Worker<PlannerJobPayload>(
     });
 
     const state = await plannerGraph.invoke({
+      jobId: job.data.jobId,
       issueId: job.data.issueId,
       repositoryName: job.data.repositoryName,
     });

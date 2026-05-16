@@ -20,6 +20,9 @@ importers:
 
   apps/fastify-api:
     dependencies:
+      '@fastify/cors':
+        specifier: ^11.2.0
+        version: 11.2.0
       '@nex-ai/logger':
         specifier: workspace:*
         version: link:../../packages/logger
@@ -174,13 +177,16 @@ importers:
     dependencies:
       '@langchain/core':
         specifier: ^1.1.45
-        version: 1.1.45
+        version: 1.1.45(openai@6.38.0(zod@4.4.3))
       '@langchain/groq':
         specifier: ^1.2.0
-        version: 1.2.0(@langchain/core@1.1.45)
+        version: 1.2.0(@langchain/core@1.1.45(openai@6.38.0(zod@4.4.3)))
       '@langchain/langgraph':
         specifier: ^1.3.0
-        version: 1.3.0(@langchain/core@1.1.45)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 1.3.0(@langchain/core@1.1.45(openai@6.38.0(zod@4.4.3)))(openai@6.38.0(zod@4.4.3))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@langchain/openai':
+        specifier: ^1.4.5
+        version: 1.4.5(@langchain/core@1.1.45(openai@6.38.0(zod@4.4.3)))
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
@@ -523,6 +529,9 @@ packages:
   '@fastify/ajv-compiler@4.0.5':
     resolution: {integrity: sha512-KoWKW+MhvfTRWL4qrhUwAAZoaChluo0m0vbiJlGMt2GXvL4LVPQEjt8kSpHI3IBq5Rez8fg+XeH3cneztq+C7A==}
 
+  '@fastify/cors@11.2.0':
+    resolution: {integrity: sha512-LbLHBuSAdGdSFZYTLVA3+Ch2t+sA6nq3Ejc6XLAKiQ6ViS2qFnvicpj0htsx03FyYeLs04HfRNBsz/a8SvbcUw==}
+
   '@fastify/error@4.2.0':
     resolution: {integrity: sha512-RSo3sVDXfHskiBZKBPRgnQTtIqpi/7zhJOEmAxCiBcM7d0uwdGdxLlsCaLzGs8v8NnxIRlfG0N51p5yFaOentQ==}
 
@@ -748,6 +757,12 @@ packages:
     peerDependenciesMeta:
       zod-to-json-schema:
         optional: true
+
+  '@langchain/openai@1.4.5':
+    resolution: {integrity: sha512-bQ2WMIZfSh02trJLYSAtiIcD3j6EBCiAm9nw0dZWQsVaUxmWc3JJqs8uUte6AkMazmLHzcUIw+14UkXO5fRJvQ==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@langchain/core': ^1.1.42
 
   '@langchain/protocol@0.0.15':
     resolution: {integrity: sha512-MllvbpMjqHevUm+v94M422mH7XKN+wGCvJRBVROTWBotEDOATYB4Ktk2UheYP859y9o2LlhtPek5t1T9eyfAbQ==}
@@ -1507,6 +1522,9 @@ packages:
   fast-uri@3.1.2:
     resolution: {integrity: sha512-rVjf7ArG3LTk+FS6Yw81V1DLuZl1bRbNrev6Tmd/9RaroeeRRJhAt7jg/6YFxbvAQXUCavSoZhPPj6oOx+5KjQ==}
 
+  fastify-plugin@5.1.0:
+    resolution: {integrity: sha512-FAIDA8eovSt5qcDgcBvDuX/v0Cjz0ohGhENZ/wpc3y+oZCY2afZ9Baqql3g/lC+OHRnciQol4ww7tuthOb9idw==}
+
   fastify@5.8.5:
     resolution: {integrity: sha512-Yqptv59pQzPgQUSIm87hMqHJmdkb1+GPxdE6vW6FRyVE9G86mt7rOghitiU4JHRaTyDUk9pfeKmDeu70lAwM4Q==}
 
@@ -2049,6 +2067,18 @@ packages:
 
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
+
+  openai@6.38.0:
+    resolution: {integrity: sha512-AoMplt2UalrpgUDMh3L09QWjNRlgJPipclQvA6sYAaeF6nHNBMgmikAZGmcYLn8on4d9sQY9Q8bOLfrBS7Lc8g==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
@@ -2757,6 +2787,11 @@ snapshots:
       ajv-formats: 3.0.1(ajv@8.20.0)
       fast-uri: 3.1.2
 
+  '@fastify/cors@11.2.0':
+    dependencies:
+      fastify-plugin: 5.1.0
+      toad-cache: 3.7.0
+
   '@fastify/error@4.2.0': {}
 
   '@fastify/fast-json-stringify-compiler@5.0.3':
@@ -2892,7 +2927,7 @@ snapshots:
 
   '@ioredis/commands@1.5.1': {}
 
-  '@langchain/core@1.1.45':
+  '@langchain/core@1.1.45(openai@6.38.0(zod@4.4.3))':
     dependencies:
       '@cfworker/json-schema': 4.1.1
       '@standard-schema/spec': 1.1.0
@@ -2900,7 +2935,7 @@ snapshots:
       camelcase: 6.3.0
       decamelize: 1.2.0
       js-tiktoken: 1.0.21
-      langsmith: 0.6.3
+      langsmith: 0.6.3(openai@6.38.0(zod@4.4.3))
       mustache: 4.2.0
       p-queue: 6.6.2
       zod: 4.4.3
@@ -2911,19 +2946,19 @@ snapshots:
       - openai
       - ws
 
-  '@langchain/groq@1.2.0(@langchain/core@1.1.45)':
+  '@langchain/groq@1.2.0(@langchain/core@1.1.45(openai@6.38.0(zod@4.4.3)))':
     dependencies:
-      '@langchain/core': 1.1.45
+      '@langchain/core': 1.1.45(openai@6.38.0(zod@4.4.3))
       groq-sdk: 1.2.0
 
-  '@langchain/langgraph-checkpoint@1.0.2(@langchain/core@1.1.45)':
+  '@langchain/langgraph-checkpoint@1.0.2(@langchain/core@1.1.45(openai@6.38.0(zod@4.4.3)))':
     dependencies:
-      '@langchain/core': 1.1.45
+      '@langchain/core': 1.1.45(openai@6.38.0(zod@4.4.3))
       uuid: 10.0.0
 
-  '@langchain/langgraph-sdk@1.9.2(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@langchain/langgraph-sdk@1.9.2(openai@6.38.0(zod@4.4.3))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
-      '@langchain/core': 1.1.45
+      '@langchain/core': 1.1.45(openai@6.38.0(zod@4.4.3))
       '@langchain/protocol': 0.0.15
       '@types/json-schema': 7.0.15
       p-queue: 9.2.0
@@ -2939,11 +2974,11 @@ snapshots:
       - openai
       - ws
 
-  '@langchain/langgraph@1.3.0(@langchain/core@1.1.45)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
+  '@langchain/langgraph@1.3.0(@langchain/core@1.1.45(openai@6.38.0(zod@4.4.3)))(openai@6.38.0(zod@4.4.3))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
     dependencies:
-      '@langchain/core': 1.1.45
-      '@langchain/langgraph-checkpoint': 1.0.2(@langchain/core@1.1.45)
-      '@langchain/langgraph-sdk': 1.9.2(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@langchain/core': 1.1.45(openai@6.38.0(zod@4.4.3))
+      '@langchain/langgraph-checkpoint': 1.0.2(@langchain/core@1.1.45(openai@6.38.0(zod@4.4.3)))
+      '@langchain/langgraph-sdk': 1.9.2(openai@6.38.0(zod@4.4.3))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@langchain/protocol': 0.0.15
       '@standard-schema/spec': 1.1.0
       uuid: 10.0.0
@@ -2959,6 +2994,15 @@ snapshots:
       - react-dom
       - svelte
       - vue
+      - ws
+
+  '@langchain/openai@1.4.5(@langchain/core@1.1.45(openai@6.38.0(zod@4.4.3)))':
+    dependencies:
+      '@langchain/core': 1.1.45(openai@6.38.0(zod@4.4.3))
+      js-tiktoken: 1.0.21
+      openai: 6.38.0(zod@4.4.3)
+      zod: 4.4.3
+    transitivePeerDependencies:
       - ws
 
   '@langchain/protocol@0.0.15': {}
@@ -3892,6 +3936,8 @@ snapshots:
 
   fast-uri@3.1.2: {}
 
+  fastify-plugin@5.1.0: {}
+
   fastify@5.8.5:
     dependencies:
       '@fastify/ajv-compiler': 4.0.5
@@ -4276,9 +4322,11 @@ snapshots:
     dependencies:
       json-buffer: 3.0.1
 
-  langsmith@0.6.3:
+  langsmith@0.6.3(openai@6.38.0(zod@4.4.3)):
     dependencies:
       p-queue: 6.6.2
+    optionalDependencies:
+      openai: 6.38.0(zod@4.4.3)
 
   levn@0.4.1:
     dependencies:
@@ -4438,6 +4486,10 @@ snapshots:
   once@1.4.0:
     dependencies:
       wrappy: 1.0.2
+
+  openai@6.38.0(zod@4.4.3):
+    optionalDependencies:
+      zod: 4.4.3
 
   optionator@0.9.4:
     dependencies:

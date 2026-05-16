@@ -30,6 +30,7 @@ const githubClient = new Client(
 );
 
 export const DeployerState = Annotation.Root({
+  jobId: Annotation<string>(),
   issueId: Annotation<string>(),
   repository: Annotation<string>(),
   reviewerResult: Annotation<ReviewerResult>(),
@@ -40,14 +41,26 @@ async function deployNode(state: typeof DeployerState.State) {
   if (!githubClient.transport) await githubClient.connect(transport);
 
   const { tools } = await githubClient.listTools();
-  const formattedTools = tools.map((t) => ({
-    type: "function",
-    function: {
-      name: t.name,
-      description: t.description || "",
-      parameters: t.inputSchema as any,
-    },
-  }));
+  const formattedTools = tools.map((t) => {
+    const inputSchema = JSON.parse(JSON.stringify(t.inputSchema || {}));
+    if (inputSchema?.properties) {
+      delete inputSchema.properties.owner;
+      delete inputSchema.properties.repo;
+    }
+    if (inputSchema?.required) {
+      inputSchema.required = inputSchema.required.filter(
+        (r: string) => r !== "owner" && r !== "repo"
+      );
+    }
+    return {
+      type: "function",
+      function: {
+        name: t.name,
+        description: t.description || "",
+        parameters: inputSchema as any,
+      },
+    };
+  });
 
   const llmWithTools = llm.bindTools(formattedTools, {
     parallel_tool_calls: false,
@@ -90,7 +103,7 @@ async function deployNode(state: typeof DeployerState.State) {
       logger.warn(`[Deployer] LLM invocation failed: ${err.message}`);
 
       await publishMessage({
-        jobId: "",
+        jobId: state.jobId,
         agentName: "DEPLOYER",
         timestamp: Date.now(),
         data: {
@@ -112,7 +125,7 @@ async function deployNode(state: typeof DeployerState.State) {
         logger.info(`[Deployer] Executing tool: ${toolCall.name}`);
 
         await publishMessage({
-          jobId: "",
+          jobId: state.jobId,
           agentName: "DEPLOYER",
           timestamp: Date.now(),
           data: {
@@ -136,7 +149,7 @@ async function deployNode(state: typeof DeployerState.State) {
 
         if (result.isError) {
           await publishMessage({
-            jobId: "",
+            jobId: state.jobId,
             agentName: "DEPLOYER",
             timestamp: Date.now(),
             data: {

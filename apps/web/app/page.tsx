@@ -2,10 +2,12 @@
 
 import styles from "./page.module.css";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const [message, setMessage] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const router = useRouter();
 
   useEffect(() => {
     (async () => {
@@ -19,9 +21,9 @@ export default function Home() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              issueId: "NEX-6",
+              issueId: "NEX-7",
               linearIssueUrl:
-                "https://linear.app/nex-ai-space/issue/NEX-6/implement-user-profile-retrieval-and-update-endpoints",
+                "https://linear.app/nex-ai-space/issue/NEX-7/implement-product-catalog-crud-endpoints-go",
               repositoryName: "Sparsh47/nex-ai-test-repo",
             }),
           },
@@ -30,6 +32,7 @@ export default function Home() {
 
         if (data.status === "job-enqueued") {
           setMessage(data.payload.jobId);
+          router.push(`${data.payload.jobId}`);
         } else {
           setMessage("Error fetching from api service");
         }

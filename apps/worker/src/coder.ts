@@ -30,6 +30,7 @@ export const coderWorker = new Worker<CoderJobPayload>(
     });
 
     const state = await coderGraph.invoke({
+      jobId: job.data.jobId,
       issueId: job.data.issueId,
       repository: job.data.repositoryName,
       plan: job.data.plannerResult,
@@ -57,6 +58,7 @@ export const coderWorker = new Worker<CoderJobPayload>(
       coderResult: result,
       repositoryName: job.data.repositoryName,
       plannerResult: job.data.plannerResult,
+      reviewAttempt: job.data.reviewAttempt || 1,
     });
   },
   {

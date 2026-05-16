@@ -17,7 +17,7 @@ export const CoderResultSchema = z.object({
   changedFiles: z.array(z.string()),
   diffSummary: z.string(),
   commitSha: z.string(),
-  pullRequestUrl: z.string().url().optional(),
+  pullRequestUrl: z.string().optional(),
 });
 export type CoderResult = z.infer<typeof CoderResultSchema>;
 
@@ -29,7 +29,7 @@ export const ReviewerResultSchema = z.object({
 export type ReviewerResult = z.infer<typeof ReviewerResultSchema>;
 
 export const DeployerResultSchema = z.object({
-  prUrl: z.string().url(),
+  prUrl: z.string(),
   mergeStatus: z.enum(["merged", "failed", "pending"]),
   testResults: z.string(),
   isLinearIssueDone: z.boolean(),

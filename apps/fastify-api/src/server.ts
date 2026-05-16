@@ -1,11 +1,25 @@
 import fastify from "fastify";
-import { plannerQueue } from "@nex-ai/queue";
+import { connection, plannerQueue } from "@nex-ai/queue";
 import { PlannerJobPayloadSchema } from "@nex-ai/types";
 import { randomUUID } from "crypto";
+import fastifyCors from "@fastify/cors";
 import { logger } from "@nex-ai/logger";
+import { EventEmitter } from "events";
 
 const server = fastify({
   logger: true,
+});
+
+const redisSubscriber = connection.duplicate();
+const sseEmitter = new EventEmitter();
+sseEmitter.setMaxListeners(1000);
+
+redisSubscriber.on("message", (channel, message) => {
+  sseEmitter.emit(channel, message);
+});
+
+server.register(fastifyCors, {
+  origin: "*",
 });
 
 server.get("/ping", async (request, reply) => {
@@ -46,6 +60,38 @@ server.post("/test", async (request, reply) => {
     payload: parsed.data,
   });
 });
+
+server.get<{ Params: { jobId: string } }>(
+  "/test/:jobId",
+  async (request, reply) => {
+    const { jobId } = request.params;
+
+    reply.raw.setHeader("Content-Type", "text/event-stream");
+    reply.raw.setHeader("Cache-Control", "no-cache");
+    reply.raw.setHeader("Connection", "keep-alive");
+    reply.raw.setHeader("X-Accel-Buffering", "no");
+
+    reply.raw.flushHeaders();
+
+    await redisSubscriber.subscribe(`job:${jobId}`);
+
+    const listener = (message: string) => {
+      reply.raw.write(`event: message\ndata: ${message}\n\n`);
+    };
+
+    sseEmitter.on(`job:${jobId}`, listener);
+
+    request.raw.on("close", () => {
+      sseEmitter.off(`job:${jobId}`, listener);
+      if (sseEmitter.listenerCount(`job:${jobId}`) === 0) {
+        redisSubscriber.unsubscribe(`job:${jobId}`);
+      }
+      reply.raw.end();
+    });
+
+    return reply;
+  },
+);
 
 const start = async () => {
   try {
