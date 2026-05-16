@@ -33,34 +33,31 @@ export default function JobIdPage({
 
   useEffect(() => {
     const eventSource = new EventSource(
-      `${process.env.NEXT_PUBLIC_API_URL}/test/${jobId}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/jobs/${jobId}/stream`,
     );
 
     eventSource.onmessage = (event) => {
-      // Check if it's the heartbeat event or empty
       if (!event.data || event.data === '""') return;
-      
+
       let data;
       try {
         data = JSON.parse(event.data);
       } catch (err) {
         return;
       }
-      
+
       if (data.agent) {
         setActiveAgent(data.agent);
         setActiveStatus(getEventDescription(data));
       }
 
-      // Update PR URL if deployer finishes and gracefully close
       if (data.agent === 'DEPLOYER' && data.data?.eventType === 'RESULT') {
         let url = null;
         if (typeof data.data?.output === 'string') {
-          // If the output is a string (fallback scenario), we set url to null or parse if needed
         } else {
           url = data.data?.output?.prUrl;
         }
-        
+
         if (url) {
           setPrUrl(url);
         }

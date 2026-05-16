@@ -1,5 +1,5 @@
 import fastify from "fastify";
-import { connection, plannerQueue } from "@nex-ai/queue";
+import { checkStatus, connection, plannerQueue } from "@nex-ai/queue";
 import { PlannerJobPayloadSchema } from "@nex-ai/types";
 import { randomUUID } from "crypto";
 import fastifyCors from "@fastify/cors";
@@ -26,7 +26,7 @@ server.get("/ping", async (request, reply) => {
   return { message: "pong", status: "ok" };
 });
 
-server.post("/test", async (request, reply) => {
+server.post("/run", async (request, reply) => {
   const body = (request.body as Record<string, any>) || {};
 
   const rawData = {
@@ -50,19 +50,18 @@ server.post("/test", async (request, reply) => {
     });
   }
 
-  const job = await plannerQueue.add("task-planner-test", parsed.data);
+  await plannerQueue.add("task-planner-test", parsed.data);
 
-  logger.info(`Job ${job.id} enqueued successfully`);
+  logger.info(`Job enqueued with UUID: ${rawData.jobId}`);
 
   return reply.code(202).send({
     status: "job-enqueued",
-    jobId: job.id,
-    payload: parsed.data,
+    jobId: rawData.jobId,
   });
-});
+})
 
 server.get<{ Params: { jobId: string } }>(
-  "/test/:jobId",
+  "/jobs/:jobId/stream",
   async (request, reply) => {
     const { jobId } = request.params;
 
@@ -93,10 +92,21 @@ server.get<{ Params: { jobId: string } }>(
   },
 );
 
+server.get<{ Params: { jobId: string } }>("/jobs/:jobId/status", async (request, reply) => {
+  const { jobId } = request.params;
+  const jobStatus = await checkStatus(jobId);
+
+  if (jobStatus.status === "not-found") {
+    return reply.status(404).send({ error: "Job not found" });
+  }
+
+  return reply.status(200).send(jobStatus);
+})
+
 const start = async () => {
   try {
     await server.listen({ port: 9000, host: "0.0.0.0" });
-    console.log(`Server is listening on http://0.0.0.0:8000`);
+    console.log(`Server is listening on http://0.0.0.0:9000`);
   } catch (err) {
     server.log.error(err);
     process.exit(1);

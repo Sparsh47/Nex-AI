@@ -1,52 +1,102 @@
 "use client";
-
 import styles from "./page.module.css";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
-  const [message, setMessage] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
+  const [linearUrl, setLinearUrl] = useState("");
+  const [repoName, setRepoName] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/test`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              issueId: "NEX-7",
-              linearIssueUrl:
-                "https://linear.app/nex-ai-space/issue/NEX-7/implement-product-catalog-crud-endpoints-go",
-              repositoryName: "Sparsh47/nex-ai-test-repo",
-            }),
-          },
-        );
-        const data = await response.json();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-        if (data.status === "job-enqueued") {
-          setMessage(data.payload.jobId);
-          router.push(`${data.payload.jobId}`);
-        } else {
-          setMessage("Error fetching from api service");
-        }
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
+    const issueIdMatch = linearUrl.match(/issue\/([A-Z]+-\d+)/);
+    const issueId = issueIdMatch ? issueIdMatch[1] : null;
+
+    if (!issueId) {
+      alert("Invalid Linear URL. Could not extract Issue ID.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          issueId,
+          linearIssueUrl: linearUrl,
+          repositoryName: repoName,
+        }),
+      });
+      const data = await response.json();
+
+      if (data.status === "job-enqueued") {
+        router.push(`/${data.jobId}`);
+      } else {
+        alert("Error: " + (data.message || "Failed to enqueue job"));
       }
-    })();
-  }, []);
+    } catch (error) {
+      console.error(error);
+      alert("Network error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className={styles.page}>
-      <h1 className="text-white">{loading ? "Loading..." : message}</h1>
+      <main className={styles.main}>
+        <div className={styles.hero}>
+          <h1 className={styles.title}>Agentic Workflow</h1>
+          <p className={styles.subtitle}>Autonomous AI coding agents at your service</p>
+        </div>
+
+        <form className={styles.form} onSubmit={handleSubmit}>
+          <div className={styles.inputGroup}>
+            <label htmlFor="linearUrl">Linear Issue URL</label>
+            <input
+              id="linearUrl"
+              type="url"
+              placeholder="https://linear.app/.../issue/NEX-7/..."
+              value={linearUrl}
+              onChange={(e) => setLinearUrl(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className={styles.inputGroup}>
+            <label htmlFor="repoName">GitHub Repository</label>
+            <input
+              id="repoName"
+              type="text"
+              placeholder="owner/repo"
+              value={repoName}
+              onChange={(e) => setRepoName(e.target.value)}
+              required
+            />
+          </div>
+
+          <button className={styles.submitBtn} type="submit" disabled={loading}>
+            {loading ? "Enqueuing..." : "Start Agentic Loop"}
+          </button>
+        </form>
+
+        <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+          <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+            Already have a job running?{' '}
+            <button 
+              onClick={() => router.push('/status')}
+              style={{ color: '#fff', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }}
+            >
+              Check Job Status
+            </button>
+          </p>
+        </div>
+      </main>
     </div>
   );
 }
+

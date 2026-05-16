@@ -21,8 +21,26 @@ export const publishMessage = async (event: StreamEvent) => {
     timestamp: event.timestamp,
     data: event.data,
   });
+
+  // Update status in Redis for persistence
+  await connection.hset(`job:${event.jobId}`, {
+    status: event.data.eventType,
+    lastAgent: event.agentName,
+    lastUpdate: event.timestamp.toString()
+  });
+
   await connection.publish(`job:${event.jobId}`, message);
 };
+
+export const checkStatus = async (jobId: string) => {
+  const job = await connection.hgetall(`job:${jobId}`);
+
+  if (job && Object.keys(job).length > 0) {
+    return { status: job.status || "pending" };
+  }
+
+  return { status: "not-found" };
+}
 
 export const plannerQueue = new Queue<PlannerJobPayload>("planner-queue", {
   connection,
