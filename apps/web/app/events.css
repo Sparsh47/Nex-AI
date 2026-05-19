@@ -218,3 +218,43 @@
   70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
 }
+
+.restart-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: rgba(24, 24, 27, 0.7);
+  border: 1px solid #27272a;
+  color: #d6d3d1;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.restart-btn:hover:not(:disabled) {
+  background-color: rgba(39, 39, 42, 0.8);
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+.restart-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}

@@ -50,6 +50,13 @@ server.post("/run", async (request, reply) => {
     });
   }
 
+  await connection.hset(`job:${rawData.jobId}`, {
+    payload: JSON.stringify(parsed.data),
+    status: "pending",
+    lastAgent: "PLANNER",
+    lastUpdate: Date.now().toString()
+  });
+
   await plannerQueue.add("task-planner-test", parsed.data);
 
   logger.info(`Job enqueued with UUID: ${rawData.jobId}`);
@@ -59,6 +66,42 @@ server.post("/run", async (request, reply) => {
     jobId: rawData.jobId,
   });
 })
+
+server.post<{ Params: { jobId: string } }>(
+  "/jobs/:jobId/restart",
+  async (request, reply) => {
+    const { jobId } = request.params;
+    const jobData = await connection.hgetall(`job:${jobId}`);
+
+    if (!jobData || !jobData.payload) {
+      return reply.status(404).send({ error: "Original job payload not found" });
+    }
+
+    const payload = JSON.parse(jobData.payload);
+    const newJobId = randomUUID();
+    const newPayload = {
+      ...payload,
+      jobId: newJobId,
+      timestamp: Date.now(),
+    };
+
+    await connection.hset(`job:${newJobId}`, {
+      payload: JSON.stringify(newPayload),
+      status: "pending",
+      lastAgent: "PLANNER",
+      lastUpdate: Date.now().toString(),
+    });
+
+    await plannerQueue.add("task-planner-test", newPayload);
+
+    logger.info(`Job restarted. New UUID: ${newJobId} (parent UUID: ${jobId})`);
+
+    return reply.code(202).send({
+      status: "job-enqueued",
+      jobId: newJobId,
+    });
+  }
+)
 
 server.get<{ Params: { jobId: string } }>(
   "/jobs/:jobId/stream",
