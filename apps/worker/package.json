@@ -9,14 +9,20 @@
     "dev:reviewer": "tsx watch src/reviewer.ts",
     "dev:deployer": "tsx watch src/deployer.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start:planner": "tsx src/planner.ts",
+    "start:coder": "tsx src/coder.ts",
+    "start:reviewer": "tsx src/reviewer.ts",
+    "start:deployer": "tsx src/deployer.ts",
+    "start": "concurrently -c \"cyan,magenta,yellow,blue\" -n \"PLANNER,CODER,REVIEW,DEPLOY\" \"pnpm run start:planner\" \"pnpm run start:coder\" \"pnpm run start:reviewer\" \"pnpm run start:deployer\""
   },
   "dependencies": {
     "@nex-ai/logger": "workspace:*",
     "@nex-ai/queue": "workspace:*",
     "@nex-ai/types": "workspace:*",
     "@nex-ai/agent": "workspace:*",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "mcp-linear": "workspace:*",
+    "mcp-github": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

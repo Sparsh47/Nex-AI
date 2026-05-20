@@ -1,4 +1,9 @@
+version: '3.8'
+
 services:
+  # ==========================================
+  # 1. KONG API GATEWAY & DATABASE
+  # ==========================================
   kong-database:
     image: postgres:13
     environment:
@@ -44,12 +49,15 @@ services:
       kong-migrations:
         condition: service_completed_successfully
     ports:
-      - "8000:8000" # Proxy API
+      - "8000:8000" # Proxy API (Main Entry Point)
       - "8443:8443" # Proxy API SSL
       - "8001:8001" # Admin API
       - "8444:8444" # Admin API SSL
       - "8002:8002" # Kong Manager (Admin GUI)
 
+  # ==========================================
+  # 2. MESSAGE BROKER
+  # ==========================================
   redis:
     image: redis:latest
     ports:
@@ -61,6 +69,87 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  
+  # ==========================================
+  # 3. TURBOREPO BACKEND SERVICES
+  # ==========================================
+  api-service:
+    build:
+      context: . # Change to ../../ if compose file is nested
+      dockerfile: apps/fastify-api/Dockerfile
+    ports:
+      - "9000:9000" 
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PORT=9000
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ==========================================
+  # 4. THE AUTONOMOUS SWARM
+  # ==========================================
+  planner:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    command: ["pnpm", "--filter", "worker", "run", "start:planner"]
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  coder:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    command: ["pnpm", "--filter", "worker", "run", "start:coder"]
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GITHUB_PAT_TOKEN=${GITHUB_PAT_TOKEN}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  reviewer:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    command: ["pnpm", "--filter", "worker", "run", "start:reviewer"]
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GITHUB_PAT_TOKEN=${GITHUB_PAT_TOKEN}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  deployer:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    command: ["pnpm", "--filter", "worker", "run", "start:deployer"]
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GITHUB_PAT_TOKEN=${GITHUB_PAT_TOKEN}
+      - LINEAR_API_KEY=${LINEAR_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
 
 volumes:
   redis-data:
