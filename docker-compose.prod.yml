@@ -57,7 +57,7 @@ services:
       - redis-data:/data
   
   api-service:
-    image: ghcr.io/sparsh47/nex-api:latest
+    image: ghcr.io/sparsh47/nex-fastify-api:latest
     environment:
       - NODE_ENV=production
       - REDIS_URL=redis://redis:6379
