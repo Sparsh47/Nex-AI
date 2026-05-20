@@ -36,9 +36,9 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: apps/api/Dockerfile
+          file: apps/fastify-api/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/nex-api:latest
+          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/nex-fastify-api:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
