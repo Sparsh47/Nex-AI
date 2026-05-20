@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  REPO_OWNER: ${{github.repository_owner}}
+  REPO_OWNER: sparsh47
 
 jobs:
   build-and-push-images:
