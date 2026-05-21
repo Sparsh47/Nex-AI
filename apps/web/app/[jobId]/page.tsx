@@ -1,7 +1,7 @@
 // app/[jobId]/page.tsx
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ReactFlow, Background, Controls, BackgroundVariant, useNodesState, useEdgesState, type Node, type Edge } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -21,6 +21,7 @@ export default function JobIdPage({
   const { jobId } = use(params);
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
   
   // Real-time state
@@ -56,6 +57,10 @@ export default function JobIdPage({
 
   useEffect(() => {
     setMounted(true);
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const getEventDescription = (e: any) => {
@@ -380,12 +385,46 @@ export default function JobIdPage({
     return <div className="eventsContainer" style={{ backgroundColor: '#09090b', height: '100vh' }} />;
   }
 
+  // ─── Mobile card data derived from the same SSE state ────────────────────
+  type MobileAgentInfo = {
+    id: string;
+    label: string;
+    status: 'Waiting' | 'Active' | 'Done' | 'Approved' | 'Merged' | 'Failed';
+    mainText?: string;
+    description: string;
+  };
+
+  const isPlannerDone = ['Coder', 'Reviewer', 'Deployer'].includes(activeAgent) || isDone;
+  const isCoderDone   = ['Reviewer', 'Deployer'].includes(activeAgent) || isDone;
+  const isReviewerDone = activeAgent === 'Deployer' || isDone;
+
+  const plannerStatusMobile = activeAgent === 'Planner' ? (errorText ? 'Failed' : 'Active') : isPlannerDone ? 'Done' : 'Waiting';
+  const coderStatusMobile   = activeAgent === 'Coder'   ? (errorText ? 'Failed' : 'Active') : isCoderDone   ? 'Done' : 'Waiting';
+  const reviewerStatusMobile = activeAgent === 'Reviewer' ? (errorText ? 'Failed' : 'Active') : isReviewerDone ? 'Approved' : 'Waiting';
+  const deployerStatusMobile = isDone ? 'Merged' : activeAgent === 'Deployer' ? (errorText ? 'Failed' : 'Active') : 'Waiting';
+
+  const mobileAgents: MobileAgentInfo[] = [
+    { id: 'planner',  label: 'Planner',  status: plannerStatusMobile,  mainText: plannerResult?.mainText || (plannerStatusMobile === 'Active' ? activeStatus : undefined),  description: 'Reads Linear issue · identifies files to change' },
+    { id: 'coder',    label: 'Coder',    status: coderStatusMobile,    mainText: coderResult?.mainText   || (coderStatusMobile   === 'Active' ? activeStatus : undefined),    description: 'Writes code · creates branch · commits' },
+    { id: 'reviewer', label: 'Reviewer', status: reviewerStatusMobile, mainText: reviewerResult?.mainText || (reviewerStatusMobile === 'Active' ? activeStatus : undefined), description: 'Reviews diff · approves or rejects' },
+    { id: 'deployer', label: 'Deployer', status: deployerStatusMobile, mainText: deployerResult?.mainText || (deployerStatusMobile === 'Active' ? activeStatus : (isDone ? 'PR Merged successfully!' : undefined)), description: 'Opens PR · merges · closes Linear issue' },
+  ];
+
+  const mobileStatusColor: Record<string, string> = {
+    Waiting:  '#71717a',
+    Active:   '#3b82f6',
+    Done:     '#22c55e',
+    Approved: '#22c55e',
+    Merged:   '#22c55e',
+    Failed:   '#ef4444',
+  };
+
   return (
-    <div className="eventsContainer" style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: 0 }}>
-      <header className="header" style={{ padding: '24px 40px 0 40px', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-        <div style={{ textAlign: 'left' }}>
-          <h1 style={{ margin: 0 }}>Autonomous Agent Flow</h1>
-          <p style={{ margin: '4px 0 0 0', color: '#a3a3a3' }}>Job ID: {jobId}</p>
+    <div className="eventsContainer flow-page-root">
+      <header className="flow-page-header">
+        <div className="flow-page-title-group">
+          <h1 className="flow-page-title">Agent Flow</h1>
+          <p className="flow-page-subtitle">Job: <span className="flow-page-jobid">{jobId}</span></p>
         </div>
         <button
           onClick={handleRestart}
@@ -393,24 +432,67 @@ export default function JobIdPage({
           className="restart-btn"
         >
           <RotateCcw className={isRestarting ? "animate-spin" : ""} style={{ width: '16px', height: '16px' }} />
-          <span>{isRestarting ? 'Restarting...' : 'Restart Flow'}</span>
+          <span className="restart-btn-label">{isRestarting ? 'Restarting...' : 'Restart'}</span>
         </button>
       </header>
 
-      <div style={{ flexGrow: 1, position: 'relative', width: '100%', height: '100%' }}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          fitView
-          className="react-flow-dark"
-        >
-          <Background color="#27272a" variant={BackgroundVariant.Dots} size={1.5} gap={24} />
-          <Controls />
-        </ReactFlow>
-      </div>
+      {isMobile ? (
+        /* ── Mobile: vertical card list ── */
+        <div className="mobile-agent-list">
+          {mobileAgents.map((agent, idx) => (
+            <div key={agent.id} className="mobile-agent-card">
+              {/* connector line above (except first) */}
+              {idx > 0 && (
+                <div
+                  className="mobile-connector"
+                  style={{ backgroundColor: mobileStatusColor[mobileAgents[idx - 1]!.status] }}
+                />
+              )}
+              <div
+                className="mobile-card-inner"
+                style={{ borderColor: mobileStatusColor[agent.status] + '55' }}
+              >
+                <div className="mobile-card-header">
+                  <span className="mobile-card-label">{agent.label}</span>
+                  <span
+                    className="mobile-card-status"
+                    style={{ color: mobileStatusColor[agent.status] }}
+                  >
+                    <span
+                      className="mobile-status-dot"
+                      style={{ backgroundColor: mobileStatusColor[agent.status] }}
+                    />
+                    {agent.status}
+                  </span>
+                </div>
+                {agent.status === 'Failed' ? (
+                  <p className="mobile-card-error">⚠ An error occurred during this phase</p>
+                ) : agent.mainText ? (
+                  <p className="mobile-card-main">{agent.mainText}</p>
+                ) : (
+                  <p className="mobile-card-desc">{agent.description}</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* ── Desktop: ReactFlow canvas ── */
+        <div className="flow-canvas-wrapper">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            fitView
+            className="react-flow-dark"
+          >
+            <Background color="#27272a" variant={BackgroundVariant.Dots} size={1.5} gap={24} />
+            <Controls />
+          </ReactFlow>
+        </div>
+      )}
     </div>
   );
 }

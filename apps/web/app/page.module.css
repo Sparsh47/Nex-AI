@@ -118,3 +118,27 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@media (max-width: 480px) {
+  .page {
+    padding: 1rem;
+    align-items: flex-start;
+    padding-top: 2.5rem;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+
+  .subtitle {
+    font-size: 0.95rem;
+  }
+
+  .form {
+    padding: 1.5rem;
+    border-radius: 1rem;
+  }
+
+  .hero {
+    margin-bottom: 2rem;
+  }
+}

@@ -10,9 +10,20 @@ import {
     ChevronUp,
     Play,
     Check,
-    Terminal
+    Terminal,
+    AlertTriangle
 } from 'lucide-react';
 import './agentNodes.css';
+
+/** Converts snake_case or camelCase tool names into readable Title Case. */
+const formatToolName = (name: string): string => {
+    // Split on underscores or camelCase boundaries
+    return name
+        .replace(/_/g, ' ')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+        .trim();
+};
 
 export type NodeStatus = 'Waiting' | 'Active' | 'Done' | 'Approved' | 'Merged' | 'Failed';
 export type AgentType = 'Planner' | 'Coder' | 'Reviewer' | 'Deployer';
@@ -92,12 +103,11 @@ export const AgentNode: React.FC<NodeProps<AgentCustomNode>> = ({ data }) => {
                     </div>
                 </div>
 
-                {status === 'Failed' && content.errorText && (
-                    <p className="text-error-main">{content.errorText}</p>
-                )}
-
-                {content.failureDescription && (
-                    <p className="text-error-desc">{content.failureDescription}</p>
+                {status === 'Failed' && (
+                    <div className="error-banner">
+                        <AlertTriangle style={{ width: '14px', height: '14px', flexShrink: 0 }} />
+                        <span>An error occurred during this phase</span>
+                    </div>
                 )}
 
                 {(status !== 'Failed' && content.mainText) && (
@@ -181,7 +191,7 @@ export const AgentNode: React.FC<NodeProps<AgentCustomNode>> = ({ data }) => {
                                             {content.tools.map((tool) => (
                                                 <div key={tool} className="tool-item active-tool">
                                                     <Play style={{ width: '12px', height: '12px', fill: '#3b82f6', color: '#3b82f6' }} />
-                                                    <span>{tool}</span>
+                                                    <span>{formatToolName(tool)}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -195,7 +205,7 @@ export const AgentNode: React.FC<NodeProps<AgentCustomNode>> = ({ data }) => {
                                             {content.usedTools.map((tool) => (
                                                 <div key={tool} className="tool-item completed-tool">
                                                     <Check style={{ width: '12px', height: '12px', color: '#22c55e' }} />
-                                                    <span>{tool}</span>
+                                                    <span>{formatToolName(tool)}</span>
                                                 </div>
                                             ))}
                                         </div>

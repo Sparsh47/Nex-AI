@@ -98,19 +98,19 @@
 .color-Failed { color: #ef4444; }
 .bg-Failed { background-color: #ef4444; }
 
-/* Text configurations */
-.text-error-main {
-  font-size: 18px;
+/* Error banner */
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #f87171;
+  font-size: 13px;
   font-weight: 500;
-  line-height: 1.3;
-  color: #ef4444;
   margin-bottom: 8px;
-}
-
-.text-error-desc {
-  color: #ef4444;
-  font-size: 16px;
-  line-height: 1.625;
 }
 
 .text-main {
@@ -199,7 +199,6 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 .active-tool span {
