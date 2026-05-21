@@ -112,6 +112,8 @@ server.get<{ Params: { jobId: string } }>(
     reply.raw.setHeader("Cache-Control", "no-cache");
     reply.raw.setHeader("Connection", "keep-alive");
     reply.raw.setHeader("X-Accel-Buffering", "no");
+    reply.raw.setHeader("Access-Control-Allow-Origin", "*");
+    reply.raw.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
 
     reply.raw.flushHeaders();
 
